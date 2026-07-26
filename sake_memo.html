@@ -533,18 +533,95 @@ function closeSakeSheet(){closeSheet('sake-bg','sake-sheet');}
 function onBackPhoto(e){
   const file=e.target.files[0];if(!file)return;
   const r=new FileReader();
-  r.onload=async ev=>{document.getElementById('analyzing').style.display='flex';try{await analyzeBack(ev.target.result);}catch(err){console.error(err);}document.getElementById('analyzing').style.display='none';};
+  r.onload=async ev=>{
+    document.getElementById('analyzing').style.display='flex';
+    try{
+      // AI送信用に適切なサイズに整える（大きすぎず小さすぎず）
+      const prepared=await prepareForOCR(ev.target.result);
+      await analyzeBack(prepared);
+    }catch(err){console.error(err);showToast('読み取りに失敗しました。もう一度お試しください');}
+    document.getElementById('analyzing').style.display='none';
+  };
   r.readAsDataURL(file);
 }
+
+// AI送信前の画像整形：長辺1600pxに揃え、コントラストを少し上げる
+function prepareForOCR(dataUrl){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=1600;
+      let w=img.width,h=img.height;
+      if(Math.max(w,h)>MAX){
+        if(w>h){h=Math.round(h*MAX/w);w=MAX;}
+        else{w=Math.round(w*MAX/h);h=MAX;}
+      }
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      const ctx=c.getContext('2d');
+      ctx.filter='contrast(1.15) brightness(1.05)';
+      ctx.drawImage(img,0,0,w,h);
+      res(c.toDataURL('image/jpeg',0.92));
+    };
+    img.src=dataUrl;
+  });
+}
+
 async function analyzeBack(dataUrl){
-  const base64=dataUrl.split(',')[1];const mt=dataUrl.split(';')[0].split(':')[1]||'image/jpeg';
-  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mt,data:base64}},{type:'text',text:`この日本酒の裏ラベル画像から情報を抽出してください。JSON形式のみで返してください（説明・バッククォート不要）:\n{"name":"銘柄名","kura":"蔵元名","pref":"蔵元がある都道府県（例:山口県）","extra":"米の品種・精米歩合・アルコール度数・日本酒度など"}\n製造年月は含めないでください。読み取れない項目はnullにしてください。`}]}]})});
-  const data=await res.json();const text=data.content?.find(b=>b.type==='text')?.text||'';
-  let p;try{p=JSON.parse(text.replace(/```json|```/g,'').trim());}catch{return;}
-  if(p.name){document.getElementById('f-name').value=p.name;document.getElementById('b-name-b').style.display='inline-flex';}
-  if(p.kura){document.getElementById('f-kura').value=p.kura;document.getElementById('b-kura-b').style.display='inline-flex';}
-  if(p.extra){document.getElementById('f-extra').value=p.extra;document.getElementById('b-extra-b').style.display='inline-flex';}
-  if(p.pref){const sel=document.getElementById('f-pref');const opt=[...sel.options].find(o=>o.value===p.pref);if(opt){sel.value=p.pref;document.getElementById('b-pref-b').style.display='inline-flex';}}
+  const base64=dataUrl.split(',')[1];
+  const mt='image/jpeg';
+  const prompt=`あなたは日本酒ラベルの情報抽出の専門家です。
+添付された日本酒の裏ラベル（または表裏両方が写っている場合は裏ラベル優先）の画像を注意深く読み取り、以下のJSON形式のみで返してください。説明文・前置き・バッククォートは一切不要です。
+
+{
+  "name": "銘柄名。サブタイトル（純米大吟醸・特別純米など）も含めて正確に。例：獺祭 純米大吟醸 磨き二割三分",
+  "kura": "蔵元（醸造元）の正式名称。例：旭酒造株式会社",
+  "pref": "蔵元が所在する都道府県名。必ず「○○県」「○○府」「○○都」「○○道」の形式で。例：山口県",
+  "extra": "以下の情報をラベルから読み取れた分だけ箇条書きで。\n・使用米の品種（麹米・掛米それぞれ）\n・精米歩合\n・アルコール度数\n・日本酒度\n・酸度\n・酵母\n・仕込み水\n・特記事項（無濾過・生原酒・限定品など）"
+}
+
+【重要な注意事項】
+- 読み取れない・書かれていない項目はnullにする（推測で埋めない）
+- 製造年月日は含めない（別途管理するため）
+- 銘柄名は商標通りの正確な表記で（ひらがな・カタカナ・漢字を正確に）
+- 蔵元名は「○○酒造」「○○酒類」など正式名称で
+- 都道府県は必ず日本の都道府県名にする`;
+
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:2000,
+      messages:[{
+        role:'user',
+        content:[
+          {type:'image',source:{type:'base64',media_type:mt,data:base64}},
+          {type:'text',text:prompt}
+        ]
+      }]
+    })
+  });
+
+  const data=await res.json();
+  if(data.error){throw new Error(data.error.message);}
+  const text=data.content?.find(b=>b.type==='text')?.text||'';
+  // JSON部分だけ取り出す（```で囲まれていても対応）
+  const jsonMatch=text.match(/\{[\s\S]*\}/);
+  if(!jsonMatch)throw new Error('JSONが見つかりません');
+  let p;
+  try{p=JSON.parse(jsonMatch[0]);}catch{throw new Error('JSONパースエラー');}
+
+  // フォームに反映
+  if(p.name&&p.name!=='null'){document.getElementById('f-name').value=p.name;document.getElementById('b-name-b').style.display='inline-flex';}
+  if(p.kura&&p.kura!=='null'){document.getElementById('f-kura').value=p.kura;document.getElementById('b-kura-b').style.display='inline-flex';}
+  if(p.extra&&p.extra!=='null'){document.getElementById('f-extra').value=p.extra;document.getElementById('b-extra-b').style.display='inline-flex';}
+  if(p.pref&&p.pref!=='null'){
+    const sel=document.getElementById('f-pref');
+    // 「山口県」でも「山口」でも一致させる
+    const opt=[...sel.options].find(o=>o.value===p.pref||p.pref.startsWith(o.value)||o.value.startsWith(p.pref));
+    if(opt){sel.value=opt.value;document.getElementById('b-pref-b').style.display='inline-flex';}
+  }
+  showToast('ラベルを読み取りました');
 }
 function saveSake(){
   const name=document.getElementById('f-name').value.trim();if(!name){document.getElementById('f-name').focus();return;}
