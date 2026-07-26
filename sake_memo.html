@@ -324,19 +324,41 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     <button class="close-btn" onclick="closeSettings()"><i class="fa fa-times"></i></button>
   </div>
   <div class="sheet-body">
-    <div style="background:var(--green-light);border:1px solid var(--green);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--green);margin-bottom:14px;line-height:1.7">
-      <strong>Firebase（無料）</strong>を使ってデータをクラウドに保存します。<br>
-      設定すると複数のデバイスで同じデータが使えます。
+    <!-- AI プロキシ設定 -->
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">① AI読み取り設定</div>
+    <div style="background:var(--indigo-light);border:1px solid #AFA9EC;border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;color:var(--indigo);margin-bottom:10px;line-height:1.8">
+      <strong>Cloudflare Workers（無料）の設定手順：</strong><br>
+      1. <a href="https://dash.cloudflare.com/sign-up" target="_blank" style="color:var(--indigo)">cloudflare.com</a> で無料アカウント作成<br>
+      2. 左メニュー「Workers &amp; Pages」→「Create」→「Create Worker」<br>
+      3. 作成されたWorkerの「Edit code」を押す<br>
+      4. 表示されたコードを全部消して、下のコードを貼り付けて「Deploy」<br>
+      5. 表示された <code style="background:rgba(0,0,0,.08);padding:1px 4px;border-radius:3px">*.workers.dev</code> のURLをコピー
     </div>
-    <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:14px;font-size:12px;color:var(--text2);line-height:2;margin-bottom:14px">
-      <strong>設定手順：</strong><br>
-      ① <a href="https://console.firebase.google.com/" target="_blank" style="color:var(--indigo)">Firebase Console</a> を開く<br>
-      ② 「プロジェクトを作成」→ 任意の名前で作成<br>
-      ③ 左メニュー「Firestore Database」→「データベースを作成」<br>
-      ④ 「本番環境モード」で作成後、ルールを以下に変更：<br>
-      <code style="display:block;background:var(--bg3);padding:6px 8px;border-radius:6px;margin:4px 0;font-size:11px">allow read, write: if true;</code>
-      ⑤ 「プロジェクトの設定」→「全般」→ アプリを登録（ウェブ）<br>
-      ⑥ 表示された設定値を下に入力
+    <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px 12px;font-size:11px;font-family:monospace;color:var(--text);margin-bottom:10px;white-space:pre-wrap;line-height:1.6;overflow-x:auto">export default {
+  async fetch(req) {
+    if (req.method === 'OPTIONS') return new Response(null, {headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*','Access-Control-Allow-Methods':'POST'}});
+    const body = await req.json();
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','x-api-key':'あなたのAPIキー','anthropic-version':'2023-06-01'},
+      body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    return new Response(JSON.stringify(data), {headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+  }
+};</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:10px">※「あなたのAPIキー」の部分を <a href="https://console.anthropic.com/" target="_blank" style="color:var(--indigo)">Anthropic Console</a> で発行したAPIキーに置き換えてください</div>
+    <div class="sfield"><label>プロキシURL（Workers の URL）</label><input id="proxy-url" type="url" placeholder="https://xxxx.workers.dev"></div>
+    <div style="height:1px;background:var(--border);margin:16px 0"></div>
+    <!-- Firebase設定 -->
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">② クラウド同期設定（Firebase）</div>
+    <div style="background:var(--green-light);border:1px solid var(--green);border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;color:var(--green);margin-bottom:10px;line-height:1.8">
+      <strong>Firebase（無料）設定手順：</strong><br>
+      1. <a href="https://console.firebase.google.com/" target="_blank" style="color:var(--green)">Firebase Console</a> でプロジェクト作成<br>
+      2. 「Firestore Database」→「データベースを作成」（本番環境モード）<br>
+      3. ルールを <code style="background:rgba(0,0,0,.08);padding:1px 4px;border-radius:3px">allow read, write: if true;</code> に変更<br>
+      4. 「プロジェクトの設定」→「全般」→ ウェブアプリを登録<br>
+      5. 表示された値を下に入力
     </div>
     <div class="sfield"><label>API Key</label><input id="fb-apikey" type="text" placeholder="AIzaSy..."></div>
     <div class="sfield"><label>Project ID</label><input id="fb-projectid" type="text" placeholder="my-sake-app-xxxxx"></div>
@@ -461,24 +483,36 @@ function openSettings(){
   document.getElementById('fb-apikey').value=cfg.apiKey||'';
   document.getElementById('fb-projectid').value=cfg.projectId||'';
   document.getElementById('fb-appid').value=cfg.appId||'';
+  document.getElementById('proxy-url').value=localStorage.getItem('sake_proxy_url')||'';
   openSheet('settings-bg','settings-sheet');
 }
 function closeSettings(){closeSheet('settings-bg','settings-sheet');}
 async function saveFirebaseConfig(){
+  // プロキシURL保存
+  const proxyUrl=document.getElementById('proxy-url').value.trim();
+  if(proxyUrl)localStorage.setItem('sake_proxy_url',proxyUrl);
+  else localStorage.removeItem('sake_proxy_url');
+  // Firebase保存
   const cfg={apiKey:document.getElementById('fb-apikey').value.trim(),projectId:document.getElementById('fb-projectid').value.trim(),appId:document.getElementById('fb-appid').value.trim()};
-  if(!cfg.apiKey||!cfg.projectId){showToast('API KeyとProject IDは必須です');return;}
-  localStorage.setItem('sake_fb_config',JSON.stringify(cfg));
+  if(cfg.apiKey&&cfg.projectId){
+    localStorage.setItem('sake_fb_config',JSON.stringify(cfg));
+    await window._fbInit();
+    await syncToCloud();
+    showToast('設定を保存しました');
+  }else if(proxyUrl){
+    showToast('プロキシURLを保存しました');
+  }else{
+    showToast('設定を保存しました');
+  }
   closeSettings();
-  await window._fbInit();
-  await syncToCloud();
-  showToast('設定を保存しました。クラウドに同期しています...');
 }
 function clearFirebaseConfig(){
-  if(!confirm('Firebase設定を削除します。ローカルデータは残ります。'))return;
+  if(!confirm('すべての設定を削除します。ローカルデータは残ります。'))return;
   localStorage.removeItem('sake_fb_config');
+  localStorage.removeItem('sake_proxy_url');
   window._fbReady=false;window._db=null;
   setSyncStatus('');
-  showToast('Firebase設定を削除しました');
+  showToast('設定を削除しました');
   closeSettings();
 }
 
@@ -586,7 +620,9 @@ async function analyzeBack(dataUrl){
 - 蔵元名は「○○酒造」「○○酒類」など正式名称で
 - 都道府県は必ず日本の都道府県名にする`;
 
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
+  const proxyUrl=localStorage.getItem('sake_proxy_url');
+  if(!proxyUrl){showToast('設定からプロキシURLを登録してください');openSettings();throw new Error('proxy not configured');}
+  const res=await fetch(proxyUrl,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
