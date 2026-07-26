@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="日本酒メモ">
+<meta name="theme-color" content="#5C4A2A">
+<title>日本酒メモ</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#FAFAF8;--bg2:#F2F0EB;--bg3:#E8E4DC;
+  --surface:#fff;--surface2:#F7F5F1;
+  --border:#E0DDD6;--border2:#CCC9C0;
+  --text:#1A1814;--text2:#6B6760;--text3:#9B988F;
+  --accent:#5C4A2A;--accent-light:#F5EFE4;--accent-mid:#8B6F47;
+  --gold:#C4972A;--gold-light:#FDF5E0;
+  --indigo:#4A4580;--indigo-light:#EEEDF8;
+  --green:#2A7A4A;--green-light:#E8F5EE;
+  --red:#C0392B;
+  --header-h:56px;--nav-h:60px;--radius:16px;--radius-sm:10px;
+}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom))}
+.app-header{position:sticky;top:0;z-index:50;height:var(--header-h);display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--border)}
+.app-header h1{font-family:'Noto Serif JP',serif;font-size:20px;font-weight:700;color:var(--accent)}
+.app-header h1 span{font-size:12px;font-weight:400;color:var(--text3);margin-left:6px;font-family:'Noto Sans JP',sans-serif}
+.header-right{display:flex;align-items:center;gap:6px}
+.sync-btn{display:flex;align-items:center;gap:4px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text2);font-size:12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif}
+.sync-btn:active{background:var(--bg2)}
+.sync-btn.syncing i{animation:spin .7s linear infinite}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);flex-shrink:0}
+.sync-dot.ok{background:var(--green)}
+.sync-dot.err{background:var(--red)}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:var(--nav-h);background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-around;z-index:50;padding-bottom:env(safe-area-inset-bottom)}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 20px;border:none;background:none;cursor:pointer;color:var(--text3);font-size:10px;font-family:'Noto Sans JP',sans-serif}
+.nav-item.active{color:var(--accent)}
+.nav-item i{font-size:20px}
+.fab{position:fixed;bottom:calc(var(--nav-h) + 12px + env(safe-area-inset-bottom));right:16px;width:54px;height:54px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(92,74,42,.35);cursor:pointer;z-index:49;transition:transform .15s}
+.fab:active{transform:scale(.93)}
+.page{display:none;padding:12px 12px 0}
+.page.active{display:block}
+.sake-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:10px;overflow:hidden}
+.card-header{display:flex;gap:12px;padding:13px;align-items:flex-start;cursor:pointer}
+.card-label-img{width:48px;height:64px;border-radius:var(--radius-sm);border:1px solid var(--border);flex-shrink:0;background:var(--bg2);display:flex;align-items:center;justify-content:center;color:var(--text3);overflow:hidden;font-size:20px}
+.card-label-img img{width:100%;height:100%;object-fit:cover}
+.card-body{flex:1;min-width:0}
+.card-name{font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px;font-family:'Noto Serif JP',serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-sub{font-size:11px;color:var(--text2);margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag-row{display:flex;flex-wrap:wrap;gap:4px}
+.tag{font-size:10px;padding:2px 8px;border-radius:100px;border:1px solid var(--border2);color:var(--text2);background:var(--bg)}
+.tag-gold{border-color:var(--gold);color:var(--gold);background:var(--gold-light)}
+.tag-indigo{border-color:var(--indigo);color:var(--indigo);background:var(--indigo-light)}
+.card-chevron{color:var(--text3);font-size:14px;transition:transform .22s;margin-top:4px;flex-shrink:0}
+.card-chevron.open{transform:rotate(90deg)}
+.card-detail{border-top:1px solid var(--border);padding:13px;background:var(--surface2)}
+.info-box{font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6;background:var(--bg);border-radius:var(--radius-sm);padding:8px 10px;border:1px solid var(--border)}
+.det-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.section-label{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--text3)}
+.det-actions{display:flex;gap:4px}
+.icon-btn{background:none;border:none;cursor:pointer;color:var(--text3);padding:6px;border-radius:8px;display:flex;align-items:center;justify-content:center;min-width:32px;min-height:32px;font-size:15px}
+.icon-btn:active{background:var(--bg2);color:var(--text)}
+.icon-btn.danger:active{background:#FDECEA;color:var(--red)}
+.vintage-block{border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;background:var(--surface);overflow:hidden}
+.vintage-header{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;background:var(--bg)}
+.vintage-ym-badge{font-family:'Noto Serif JP',serif;font-size:15px;font-weight:700;color:var(--accent);flex-shrink:0;min-width:78px}
+.vintage-summary{flex:1;min-width:0}
+.vintage-best{font-size:11px;color:var(--gold)}
+.vintage-count{font-size:11px;color:var(--text3)}
+.vintage-chevron{color:var(--text3);font-size:12px;transition:transform .2s;flex-shrink:0}
+.vintage-chevron.open{transform:rotate(90deg)}
+.vintage-actions{display:flex;gap:2px;flex-shrink:0}
+.vintage-detail{padding:10px;border-top:1px solid var(--border);background:var(--surface2)}
+.label-photos{display:flex;gap:8px;margin-bottom:10px}
+.label-photo-wrap{flex:1}
+.label-photo-wrap img{width:100%;height:110px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);display:block}
+.label-photo-cap{font-size:10px;color:var(--text3);text-align:center;margin-top:3px}
+.label-photo-empty{width:100%;height:110px;border-radius:var(--radius-sm);border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:11px;background:var(--bg)}
+.nomi-block{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px}
+.nomi-toprow{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:6px}
+.nomi-meta{font-size:11px;color:var(--text2);line-height:1.5}
+.nomi-meta strong{color:var(--text);font-weight:700}
+.nomi-actions{display:flex;gap:2px;flex-shrink:0}
+.taste-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px}
+.taste-cell{text-align:center}
+.taste-cell-label{font-size:9px;color:var(--text3);margin-bottom:3px;line-height:1.2}
+.dots{display:flex;justify-content:center;gap:2px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--border2)}
+.dot.on{background:var(--indigo)}
+.nomi-note-text{font-size:12px;color:var(--text2);margin-top:6px;line-height:1.5;border-top:1px solid var(--border);padding-top:6px}
+.add-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border:1.5px dashed var(--border2);border-radius:8px;background:none;color:var(--text2);font-size:13px;cursor:pointer;width:100%;margin-top:4px;font-family:'Noto Sans JP',sans-serif}
+.add-btn:active{background:var(--bg2)}
+.add-vintage-btn{margin-top:8px;border-color:var(--accent-mid);color:var(--accent)}
+.search-box{position:relative;margin-bottom:8px}
+.search-box i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none}
+.search-input{width:100%;padding:10px 12px 10px 36px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);font-size:14px;color:var(--text);font-family:'Noto Sans JP',sans-serif;-webkit-appearance:none}
+.search-input:focus{outline:none;border-color:var(--accent-mid)}
+.chip-scroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.chip-scroll::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;padding:6px 12px;border:1px solid var(--border);border-radius:100px;background:var(--surface);font-size:12px;color:var(--text2);cursor:pointer;flex-shrink:0;font-family:'Noto Sans JP',sans-serif}
+.chip.on{background:var(--accent-light);border-color:var(--accent-mid);color:var(--accent);font-weight:700}
+.sort-row{display:flex;gap:8px;margin-bottom:10px}
+.fsel{flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-family:'Noto Sans JP',sans-serif;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%239B988F' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+.sheet-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100}
+.sheet-bg.open{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:101;background:var(--surface);border-radius:22px 22px 0 0;max-height:94vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,0,.67,0);padding-bottom:calc(16px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+.sheet.open{transform:translateY(0);transition:transform .3s cubic-bezier(.22,.68,0,1.2)}
+.sheet-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 0}
+.sheet-head{padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.sheet-title{font-family:'Noto Serif JP',serif;font-size:17px;font-weight:700;color:var(--accent)}
+.sheet-subtitle{font-size:12px;color:var(--text2);margin-top:2px}
+.close-btn{width:30px;height:30px;border-radius:50%;background:var(--bg2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:14px}
+.sheet-body{padding:14px 16px 0}
+.sfield{margin-bottom:13px}
+.sfield label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:700}
+.sfield input,.sfield textarea,.sfield select{width:100%;font-size:16px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;-webkit-appearance:none}
+.sfield input:focus,.sfield textarea:focus,.sfield select:focus{outline:none;border-color:var(--accent-mid);background:var(--surface)}
+.sfield textarea{resize:none;height:72px;line-height:1.5}
+.sfield-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ai-badge{display:inline-flex;align-items:center;gap:2px;font-size:10px;padding:1px 6px;border-radius:100px;background:var(--indigo-light);color:var(--indigo);border:1px solid #AFA9EC;margin-left:5px;font-weight:400}
+.photo-btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+.photo-trigger-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:16px 10px;border:none;border-radius:var(--radius-sm);background:var(--accent);color:#fff;font-family:'Noto Sans JP',sans-serif;font-size:12px;font-weight:700;cursor:pointer;line-height:1.3}
+.photo-trigger-btn:active{opacity:.8}
+.photo-trigger-btn i{font-size:22px}
+.photo-trigger-btn.sec{background:var(--bg2);color:var(--text2);border:1px solid var(--border2)}
+.photo-trigger-btn.sec:active{background:var(--bg3)}
+.photo-thumb{width:100%;max-height:140px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:6px}
+.photo-thumb-sm{width:100%;height:110px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:4px;display:block}
+.analyzing-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--indigo-light);border-radius:var(--radius-sm);font-size:12px;color:var(--indigo);margin-bottom:8px}
+.spinner{width:16px;height:16px;border:2px solid #AFA9EC;border-top-color:var(--indigo);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.star-row{display:flex;gap:8px;margin-top:6px}
+.star-btn{font-size:30px;cursor:pointer;color:var(--border2);background:none;border:none;line-height:1;padding:2px}
+.star-btn.on{color:var(--gold)}
+.taste-sl{margin-bottom:13px}
+.taste-sl-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.taste-sl-top label{font-size:13px;color:var(--text2);font-weight:500}
+.taste-sl-top span{font-size:13px;font-weight:700;color:var(--accent);min-width:28px;text-align:right}
+.taste-sl input[type=range]{width:100%;accent-color:var(--indigo);height:5px}
+.sheet-footer{padding:12px 16px 0;border-top:1px solid var(--border);display:flex;gap:10px;margin-top:14px}
+.sh-btn{flex:1;padding:14px;border-radius:var(--radius-sm);font-size:15px;font-weight:700;border:none;cursor:pointer;font-family:'Noto Sans JP',sans-serif}
+.sh-btn:active{opacity:.8}
+.sh-cancel{background:var(--bg2);color:var(--text2)}
+.sh-save{background:var(--accent);color:#fff}
+.empty-state{text-align:center;padding:4rem 1rem;color:var(--text3);font-size:14px}
+.empty-state i{font-size:44px;display:block;margin-bottom:12px;opacity:.25}
+.empty-state p{line-height:1.8}
+.divider{height:1px;background:var(--border);margin-bottom:13px}
+/* Firebase設定 */
+.fb-setup{padding:24px 20px;text-align:center}
+.fb-setup h2{font-family:'Noto Serif JP',serif;font-size:18px;color:var(--accent);margin-bottom:8px}
+.fb-setup p{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px}
+.fb-steps{text-align:left;background:var(--bg2);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:16px;font-size:13px;color:var(--text2);line-height:2}
+.fb-steps a{color:var(--indigo)}
+.fb-save-btn{width:100%;padding:14px;border-radius:var(--radius-sm);font-size:15px;font-weight:700;border:none;cursor:pointer;background:var(--accent);color:#fff;font-family:'Noto Sans JP',sans-serif;margin-top:4px}
+.fb-save-btn:active{opacity:.8}
+.fb-skip{display:block;margin-top:10px;font-size:13px;color:var(--text3);background:none;border:none;cursor:pointer;font-family:'Noto Sans JP',sans-serif;width:100%;padding:8px;text-decoration:underline}
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-20px);background:rgba(30,30,30,.92);color:#fff;padding:8px 18px;border-radius:100px;font-size:13px;opacity:0;transition:opacity .3s,transform .3s;z-index:999;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<header class="app-header">
+  <h1>🍶 日本酒メモ <span id="sake-count"></span></h1>
+  <div class="header-right">
+    <button class="sync-btn" id="sync-btn" onclick="syncNow()">
+      <div class="sync-dot" id="sync-dot"></div>
+      <i class="fa fa-cloud"></i>
+      <span id="sync-label">同期</span>
+    </button>
+    <button class="icon-btn" onclick="openSettings()" aria-label="設定" style="color:var(--text2)"><i class="fa fa-gear"></i></button>
+  </div>
+</header>
+
+<main>
+  <div class="page active" id="page-list"><div id="list-container"></div></div>
+  <div class="page" id="page-search">
+    <div class="search-box">
+      <i class="fa fa-search"></i>
+      <input class="search-input" id="q" type="search" placeholder="銘柄・蔵元で検索..." oninput="renderSearch()">
+    </div>
+    <input class="search-input" id="qextra" type="search" placeholder="🌾 米の品種などで検索..." oninput="renderSearch()" style="margin-bottom:8px">
+    <div class="chip-scroll" id="type-chips"></div>
+    <div class="sort-row">
+      <select class="fsel" id="fpref" onchange="renderSearch()"><option value="">都道府県を選択</option></select>
+      <select class="fsel" id="fsort" onchange="renderSearch()">
+        <option value="new">新しい順</option>
+        <option value="rating">評価が高い順</option>
+      </select>
+    </div>
+    <div id="search-results"></div>
+  </div>
+</main>
+
+<nav class="bottom-nav">
+  <button class="nav-item active" id="nav-list" onclick="showPage('list')"><i class="fa fa-list"></i>一覧</button>
+  <button class="nav-item" id="nav-search" onclick="showPage('search')"><i class="fa fa-search"></i>検索</button>
+</nav>
+<button class="fab" onclick="openSakeSheet()" aria-label="新しい銘柄を追加"><i class="fa fa-plus"></i></button>
+
+<!-- 銘柄シート -->
+<div class="sheet-bg" id="sake-bg" onclick="closeSakeSheet()"></div>
+<div class="sheet" id="sake-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <div><div class="sheet-title" id="sake-sheet-title">新しい銘柄</div></div>
+    <button class="close-btn" onclick="closeSakeSheet()"><i class="fa fa-times"></i></button>
+  </div>
+  <div class="sheet-body">
+    <div class="sfield">
+      <label>裏ラベルを読み取る（AI自動入力）</label>
+      <input type="file" accept="image/*" capture="environment" id="f-back-camera" onchange="onBackPhoto(event)" style="display:none">
+      <input type="file" accept="image/*" id="f-back-lib" onchange="onBackPhoto(event)" style="display:none">
+      <div class="photo-btn-row">
+        <button class="photo-trigger-btn" onclick="document.getElementById('f-back-camera').click()"><i class="fa fa-camera"></i><span>カメラで撮影</span></button>
+        <button class="photo-trigger-btn sec" onclick="document.getElementById('f-back-lib').click()"><i class="fa fa-image"></i><span>ライブラリから</span></button>
+      </div>
+      <div class="analyzing-bar" id="analyzing" style="display:none"><div class="spinner"></div><span>裏ラベルを解析中です...</span></div>
+    </div>
+    <div class="divider"></div>
+    <div class="sfield">
+      <label>銘柄名 * <span id="b-name-b" class="ai-badge" style="display:none">✨ AI</span></label>
+      <input id="f-name" type="text" placeholder="例：獺祭 純米大吟醸">
+    </div>
+    <div class="sfield-row">
+      <div class="sfield"><label>蔵元 <span id="b-kura-b" class="ai-badge" style="display:none">✨ AI</span></label><input id="f-kura" type="text" placeholder="例：旭酒造"></div>
+      <div class="sfield"><label>蔵元の県 <span id="b-pref-b" class="ai-badge" style="display:none">✨ AI</span></label><select id="f-pref"><option value="">選択</option></select></div>
+    </div>
+    <div class="sfield"><label>その他 <span id="b-extra-b" class="ai-badge" style="display:none">✨ AI</span></label><textarea id="f-extra" placeholder="米の品種・精米歩合・アルコール度数など"></textarea></div>
+  </div>
+  <div class="sheet-footer">
+    <button class="sh-btn sh-cancel" onclick="closeSakeSheet()">やめる</button>
+    <button class="sh-btn sh-save" onclick="saveSake()">保存する</button>
+  </div>
+</div>
+
+<!-- 製造年月シート -->
+<div class="sheet-bg" id="vintage-bg" onclick="closeVintageSheet()"></div>
+<div class="sheet" id="vintage-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <div><div class="sheet-title" id="vintage-sheet-title">製造年月を追加</div><div class="sheet-subtitle" id="vintage-sheet-sub"></div></div>
+    <button class="close-btn" onclick="closeVintageSheet()"><i class="fa fa-times"></i></button>
+  </div>
+  <div class="sheet-body">
+    <div class="sfield-row">
+      <div class="sfield"><label>製造年 *</label><input id="v-year" type="text" inputmode="numeric" placeholder="例：2023"></div>
+      <div class="sfield"><label>製造月</label>
+        <select id="v-month"><option value="">不明</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option></select>
+      </div>
+    </div>
+    <div class="sfield">
+      <label>表ラベルの写真</label>
+      <input type="file" accept="image/*" capture="environment" id="v-front-camera" onchange="onVintagePhoto(event,'front')" style="display:none">
+      <input type="file" accept="image/*" id="v-front-lib" onchange="onVintagePhoto(event,'front')" style="display:none">
+      <div class="photo-btn-row">
+        <button class="photo-trigger-btn" style="padding:12px 8px" onclick="document.getElementById('v-front-camera').click()"><i class="fa fa-camera"></i><span>カメラ</span></button>
+        <button class="photo-trigger-btn sec" style="padding:12px 8px" onclick="document.getElementById('v-front-lib').click()"><i class="fa fa-image"></i><span>ライブラリ</span></button>
+      </div>
+      <img id="v-front-prev" class="photo-thumb" style="display:none" alt="表ラベル">
+    </div>
+    <div class="sfield">
+      <label>裏ラベルの写真</label>
+      <input type="file" accept="image/*" capture="environment" id="v-back-camera" onchange="onVintagePhoto(event,'back')" style="display:none">
+      <input type="file" accept="image/*" id="v-back-lib" onchange="onVintagePhoto(event,'back')" style="display:none">
+      <div class="photo-btn-row">
+        <button class="photo-trigger-btn" style="padding:12px 8px" onclick="document.getElementById('v-back-camera').click()"><i class="fa fa-camera"></i><span>カメラ</span></button>
+        <button class="photo-trigger-btn sec" style="padding:12px 8px" onclick="document.getElementById('v-back-lib').click()"><i class="fa fa-image"></i><span>ライブラリ</span></button>
+      </div>
+      <img id="v-back-prev" class="photo-thumb" style="display:none" alt="裏ラベル">
+    </div>
+    <div class="sfield"><label>メモ（この製造年月について）</label><textarea id="v-note" placeholder="例：特別純米の限定品、受賞歴など"></textarea></div>
+  </div>
+  <div class="sheet-footer">
+    <button class="sh-btn sh-cancel" onclick="closeVintageSheet()">やめる</button>
+    <button class="sh-btn sh-save" onclick="saveVintage()">保存する</button>
+  </div>
+</div>
+
+<!-- 飲み感シート -->
+<div class="sheet-bg" id="nomi-bg" onclick="closeNomiSheet()"></div>
+<div class="sheet" id="nomi-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <div><div class="sheet-title" id="nomi-sheet-title">飲み感</div><div class="sheet-subtitle" id="nomi-sheet-sub"></div></div>
+    <button class="close-btn" onclick="closeNomiSheet()"><i class="fa fa-times"></i></button>
+  </div>
+  <div class="sheet-body">
+    <div class="sfield-row">
+      <div class="sfield"><label>飲んだ日</label><input id="t-date" type="date"></div>
+      <div class="sfield"><label>場所</label><input id="t-place" type="text" placeholder="例：居酒屋"></div>
+    </div>
+    <div class="sfield"><label>総合評価</label>
+      <div class="star-row" id="t-stars">
+        <button class="star-btn" data-v="1" onclick="setRating(1)">★</button>
+        <button class="star-btn" data-v="2" onclick="setRating(2)">★</button>
+        <button class="star-btn" data-v="3" onclick="setRating(3)">★</button>
+        <button class="star-btn" data-v="4" onclick="setRating(4)">★</button>
+        <button class="star-btn" data-v="5" onclick="setRating(5)">★</button>
+      </div>
+    </div>
+    <div class="sfield"><label>味の評価（各5段階）</label><div id="taste-sliders" style="margin-top:8px"></div></div>
+    <div class="sfield"><label>メモ・感想</label><textarea id="t-note" placeholder="合わせた料理、印象など..."></textarea></div>
+  </div>
+  <div class="sheet-footer">
+    <button class="sh-btn sh-cancel" onclick="closeNomiSheet()">やめる</button>
+    <button class="sh-btn sh-save" onclick="saveNomi()">保存する</button>
+  </div>
+</div>
+
+<!-- Firebase設定シート -->
+<div class="sheet-bg" id="settings-bg" onclick="closeSettings()"></div>
+<div class="sheet" id="settings-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <div><div class="sheet-title">クラウド設定</div></div>
+    <button class="close-btn" onclick="closeSettings()"><i class="fa fa-times"></i></button>
+  </div>
+  <div class="sheet-body">
+    <div style="background:var(--green-light);border:1px solid var(--green);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--green);margin-bottom:14px;line-height:1.7">
+      <strong>Firebase（無料）</strong>を使ってデータをクラウドに保存します。<br>
+      設定すると複数のデバイスで同じデータが使えます。
+    </div>
+    <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:14px;font-size:12px;color:var(--text2);line-height:2;margin-bottom:14px">
+      <strong>設定手順：</strong><br>
+      ① <a href="https://console.firebase.google.com/" target="_blank" style="color:var(--indigo)">Firebase Console</a> を開く<br>
+      ② 「プロジェクトを作成」→ 任意の名前で作成<br>
+      ③ 左メニュー「Firestore Database」→「データベースを作成」<br>
+      ④ 「本番環境モード」で作成後、ルールを以下に変更：<br>
+      <code style="display:block;background:var(--bg3);padding:6px 8px;border-radius:6px;margin:4px 0;font-size:11px">allow read, write: if true;</code>
+      ⑤ 「プロジェクトの設定」→「全般」→ アプリを登録（ウェブ）<br>
+      ⑥ 表示された設定値を下に入力
+    </div>
+    <div class="sfield"><label>API Key</label><input id="fb-apikey" type="text" placeholder="AIzaSy..."></div>
+    <div class="sfield"><label>Project ID</label><input id="fb-projectid" type="text" placeholder="my-sake-app-xxxxx"></div>
+    <div class="sfield"><label>App ID</label><input id="fb-appid" type="text" placeholder="1:123456789:web:abc..."></div>
+  </div>
+  <div class="sheet-footer" style="flex-direction:column;gap:8px">
+    <button class="sh-btn sh-save" onclick="saveFirebaseConfig()">設定を保存して同期開始</button>
+    <button class="sh-btn sh-cancel" onclick="clearFirebaseConfig()" style="font-size:13px">Firebase設定を削除（ローカルのみに戻す）</button>
+    <button class="sh-btn sh-cancel" onclick="closeSettings()">閉じる</button>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import{getFirestore,doc,setDoc,getDoc}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+window._fbReady=false;
+window._db=null;
+window._fbInit=async function(){
+  const cfg=JSON.parse(localStorage.getItem('sake_fb_config')||'null');
+  if(!cfg||!cfg.apiKey||!cfg.projectId)return;
+  try{
+    const app=initializeApp({
+      apiKey:cfg.apiKey,
+      authDomain:cfg.projectId+'.firebaseapp.com',
+      projectId:cfg.projectId,
+      appId:cfg.appId
+    });
+    window._db=getFirestore(app);
+    window._fbReady=true;
+    window._fbSetDoc=setDoc;
+    window._fbGetDoc=getDoc;
+    window._fbDoc=doc;
+  }catch(e){console.error('Firebase init error',e);}
+};
+window._fbInit();
+</script>
+
+<script>
+const PREFS=['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
+const TYPES=['純米大吟醸','大吟醸','純米吟醸','吟醸','純米','本醸造','その他'];
+const TASTE_KEYS=['口当たり','華やかさ','爽やかさ','甘さ','後味の切れ','また飲みたいか'];
+const SK='sake_memo_v6';
+
+let db=JSON.parse(localStorage.getItem(SK)||'[]');
+// 旧データ移行
+db=db.map(r=>{
+  if(!r.vintages){
+    const v={id:'v'+Date.now()+Math.random(),year:r.year||'不明',month:'',frontImg:r.frontImg||null,backImg:null,note:'',nomikans:r.tastings||[]};
+    const{year,frontImg,tastings,...rest}=r;
+    return{...rest,vintages:[v]};
+  }
+  return{...r,vintages:r.vintages.map(v=>{
+    if(!v.nomikans){const{tastings,img,...vr}=v;return{...vr,nomikans:tastings||[],frontImg:img||v.frontImg||null,backImg:v.backImg||null};}
+    return v;
+  })};
+});
+persist();
+
+let editSakeId=null,curSakeId=null,editVintageId=null,curVintageId=null,editNomiId=null;
+let vFrontImg=null,vBackImg=null,tRating=0,tasteVals={};
+let activeType='';
+
+function persist(){localStorage.setItem(SK,JSON.stringify(db));}
+
+// ── 画像圧縮 ──
+function compressImage(dataUrl,maxW,maxH,q){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.width,h=img.height;
+      if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+      if(h>maxH){w=Math.round(w*maxH/h);h=maxH;}
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      res(c.toDataURL('image/jpeg',q));
+    };
+    img.src=dataUrl;
+  });
+}
+
+// ── Firebase同期 ──
+async function syncToCloud(){
+  if(!window._fbReady)return;
+  setSyncStatus('syncing');
+  try{
+    await window._fbSetDoc(window._fbDoc(window._db,'sake_memo','data'),{payload:JSON.stringify(db),updatedAt:Date.now()});
+    setSyncStatus('ok');showToast('クラウドに保存しました');
+  }catch(e){setSyncStatus('err');showToast('同期に失敗しました');console.error(e);}
+}
+async function syncFromCloud(){
+  if(!window._fbReady)return;
+  setSyncStatus('syncing');
+  try{
+    const snap=await window._fbGetDoc(window._fbDoc(window._db,'sake_memo','data'));
+    if(snap.exists()){
+      const remote=JSON.parse(snap.data().payload||'[]');
+      db=remote;persist();renderList();renderSearch();updateCount();
+      setSyncStatus('ok');showToast('クラウドから読み込みました');
+    }else{
+      await syncToCloud();
+    }
+  }catch(e){setSyncStatus('err');showToast('同期に失敗しました');console.error(e);}
+}
+async function syncNow(){
+  if(!window._fbReady){openSettings();return;}
+  await syncFromCloud();
+}
+function setSyncStatus(s){
+  const dot=document.getElementById('sync-dot');
+  const btn=document.getElementById('sync-btn');
+  const lbl=document.getElementById('sync-label');
+  dot.className='sync-dot'+(s==='ok'?' ok':s==='err'?' err':'');
+  btn.className='sync-btn'+(s==='syncing'?' syncing':'');
+  lbl.textContent=s==='syncing'?'同期中...':s==='ok'?'同期済':'同期';
+}
+
+// ── Firebase設定 ──
+function openSettings(){
+  const cfg=JSON.parse(localStorage.getItem('sake_fb_config')||'{}');
+  document.getElementById('fb-apikey').value=cfg.apiKey||'';
+  document.getElementById('fb-projectid').value=cfg.projectId||'';
+  document.getElementById('fb-appid').value=cfg.appId||'';
+  openSheet('settings-bg','settings-sheet');
+}
+function closeSettings(){closeSheet('settings-bg','settings-sheet');}
+async function saveFirebaseConfig(){
+  const cfg={apiKey:document.getElementById('fb-apikey').value.trim(),projectId:document.getElementById('fb-projectid').value.trim(),appId:document.getElementById('fb-appid').value.trim()};
+  if(!cfg.apiKey||!cfg.projectId){showToast('API KeyとProject IDは必須です');return;}
+  localStorage.setItem('sake_fb_config',JSON.stringify(cfg));
+  closeSettings();
+  await window._fbInit();
+  await syncToCloud();
+  showToast('設定を保存しました。クラウドに同期しています...');
+}
+function clearFirebaseConfig(){
+  if(!confirm('Firebase設定を削除します。ローカルデータは残ります。'))return;
+  localStorage.removeItem('sake_fb_config');
+  window._fbReady=false;window._db=null;
+  setSyncStatus('');
+  showToast('Firebase設定を削除しました');
+  closeSettings();
+}
+
+// ── トースト ──
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ── 初期化 ──
+['f-pref','fpref'].forEach(id=>{
+  const s=document.getElementById(id);
+  PREFS.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;s.appendChild(o);});
+});
+const tc=document.getElementById('type-chips');
+['すべて',...TYPES].forEach(t=>{
+  const b=document.createElement('button');
+  b.className='chip'+(t==='すべて'?' on':'');
+  b.textContent=t;
+  b.onclick=()=>{activeType=t==='すべて'?'':t;document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));b.classList.add('on');renderSearch();};
+  tc.appendChild(b);
+});
+
+function setRating(v){tRating=v;updStars();}
+function updStars(){document.querySelectorAll('.star-btn').forEach(s=>s.classList.toggle('on',+s.dataset.v<=tRating));}
+function buildTasteSliders(){
+  document.getElementById('taste-sliders').innerHTML=TASTE_KEYS.map(k=>`
+    <div class="taste-sl"><div class="taste-sl-top"><label>${k}</label><span id="tv-${k}">★${tasteVals[k]||3}</span></div>
+    <input type="range" min="1" max="5" value="${tasteVals[k]||3}" step="1" oninput="tasteVals['${k}']=+this.value;document.getElementById('tv-${k}').textContent='★'+this.value"></div>`).join('');
+}
+
+function showPage(p){
+  ['list','search'].forEach(n=>{document.getElementById('page-'+n).classList.toggle('active',n===p);document.getElementById('nav-'+n).classList.toggle('active',n===p);});
+  if(p==='list')renderList(); else renderSearch();
+}
+function openSheet(bgId,sheetId){document.getElementById(bgId).classList.add('open');requestAnimationFrame(()=>document.getElementById(sheetId).classList.add('open'));}
+function closeSheet(bgId,sheetId){document.getElementById(sheetId).classList.remove('open');setTimeout(()=>document.getElementById(bgId).classList.remove('open'),300);}
+
+// ── 銘柄 ──
+function openSakeSheet(id){
+  editSakeId=id||null;
+  document.getElementById('sake-sheet-title').textContent=id?'銘柄を編集':'新しい銘柄';
+  ['name','kura','pref','extra'].forEach(k=>{const b=document.getElementById('b-'+k+'-b');if(b)b.style.display='none';});
+  document.getElementById('analyzing').style.display='none';
+  ['f-back-camera','f-back-lib'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  if(id){const r=db.find(x=>x.id===id);document.getElementById('f-name').value=r.name||'';document.getElementById('f-kura').value=r.kura||'';document.getElementById('f-pref').value=r.pref||'';document.getElementById('f-extra').value=r.extra||'';}
+  else{['f-name','f-kura','f-extra'].forEach(i=>document.getElementById(i).value='');document.getElementById('f-pref').value='';}
+  openSheet('sake-bg','sake-sheet');
+}
+function closeSakeSheet(){closeSheet('sake-bg','sake-sheet');}
+function onBackPhoto(e){
+  const file=e.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=async ev=>{document.getElementById('analyzing').style.display='flex';try{await analyzeBack(ev.target.result);}catch(err){console.error(err);}document.getElementById('analyzing').style.display='none';};
+  r.readAsDataURL(file);
+}
+async function analyzeBack(dataUrl){
+  const base64=dataUrl.split(',')[1];const mt=dataUrl.split(';')[0].split(':')[1]||'image/jpeg';
+  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mt,data:base64}},{type:'text',text:`この日本酒の裏ラベル画像から情報を抽出してください。JSON形式のみで返してください（説明・バッククォート不要）:\n{"name":"銘柄名","kura":"蔵元名","pref":"蔵元がある都道府県（例:山口県）","extra":"米の品種・精米歩合・アルコール度数・日本酒度など"}\n製造年月は含めないでください。読み取れない項目はnullにしてください。`}]}]})});
+  const data=await res.json();const text=data.content?.find(b=>b.type==='text')?.text||'';
+  let p;try{p=JSON.parse(text.replace(/```json|```/g,'').trim());}catch{return;}
+  if(p.name){document.getElementById('f-name').value=p.name;document.getElementById('b-name-b').style.display='inline-flex';}
+  if(p.kura){document.getElementById('f-kura').value=p.kura;document.getElementById('b-kura-b').style.display='inline-flex';}
+  if(p.extra){document.getElementById('f-extra').value=p.extra;document.getElementById('b-extra-b').style.display='inline-flex';}
+  if(p.pref){const sel=document.getElementById('f-pref');const opt=[...sel.options].find(o=>o.value===p.pref);if(opt){sel.value=p.pref;document.getElementById('b-pref-b').style.display='inline-flex';}}
+}
+function saveSake(){
+  const name=document.getElementById('f-name').value.trim();if(!name){document.getElementById('f-name').focus();return;}
+  const rec={id:editSakeId||Date.now().toString(),name,kura:document.getElementById('f-kura').value.trim(),pref:document.getElementById('f-pref').value,extra:document.getElementById('f-extra').value.trim(),vintages:[],createdAt:Date.now()};
+  if(editSakeId){const i=db.findIndex(x=>x.id===editSakeId);rec.vintages=db[i].vintages||[];db[i]=rec;}else db.unshift(rec);
+  persist();syncToCloud();closeSakeSheet();renderList();renderSearch();updateCount();
+}
+function deleteSake(id){if(!confirm('この銘柄をすべての製造年月ごと削除しますか？'))return;db=db.filter(x=>x.id!==id);persist();syncToCloud();renderList();renderSearch();updateCount();}
+
+// ── 製造年月 ──
+function openVintageSheet(sakeId,vintageId){
+  curSakeId=sakeId;editVintageId=vintageId||null;vFrontImg=null;vBackImg=null;
+  const sake=db.find(x=>x.id===sakeId);
+  document.getElementById('vintage-sheet-title').textContent=vintageId?'製造年月を編集':'製造年月を追加';
+  document.getElementById('vintage-sheet-sub').textContent=sake.name;
+  ['v-front-camera','v-front-lib','v-back-camera','v-back-lib'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  document.getElementById('v-front-prev').style.display='none';document.getElementById('v-back-prev').style.display='none';
+  if(vintageId){const v=sake.vintages.find(x=>x.id===vintageId);document.getElementById('v-year').value=v.year||'';document.getElementById('v-month').value=v.month||'';document.getElementById('v-note').value=v.note||'';vFrontImg=v.frontImg||null;vBackImg=v.backImg||null;if(vFrontImg){const p=document.getElementById('v-front-prev');p.src=vFrontImg;p.style.display='block';}if(vBackImg){const p=document.getElementById('v-back-prev');p.src=vBackImg;p.style.display='block';}}
+  else{document.getElementById('v-year').value='';document.getElementById('v-month').value='';document.getElementById('v-note').value='';}
+  openSheet('vintage-bg','vintage-sheet');
+}
+function closeVintageSheet(){closeSheet('vintage-bg','vintage-sheet');}
+function onVintagePhoto(e,side){
+  const file=e.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=async ev=>{
+    const thumb=await compressImage(ev.target.result,800,1200,.75);
+    if(side==='front'){vFrontImg=thumb;const p=document.getElementById('v-front-prev');p.src=ev.target.result;p.style.display='block';}
+    else{vBackImg=thumb;const p=document.getElementById('v-back-prev');p.src=ev.target.result;p.style.display='block';}
+  };
+  r.readAsDataURL(file);
+}
+function saveVintage(){
+  const year=document.getElementById('v-year').value.trim();if(!year){document.getElementById('v-year').focus();return;}
+  const sake=db.find(x=>x.id===curSakeId);if(!sake)return;
+  const v={id:editVintageId||'v'+Date.now(),year,month:document.getElementById('v-month').value,frontImg:vFrontImg,backImg:vBackImg,note:document.getElementById('v-note').value.trim(),nomikans:[]};
+  if(editVintageId){const i=sake.vintages.findIndex(x=>x.id===editVintageId);v.nomikans=sake.vintages[i].nomikans||[];sake.vintages[i]=v;}
+  else sake.vintages.unshift(v);
+  persist();syncToCloud();closeVintageSheet();renderList();renderSearch();
+}
+function deleteVintage(sakeId,vid){if(!confirm('この製造年月の記録をすべて削除しますか？'))return;const sake=db.find(x=>x.id===sakeId);sake.vintages=sake.vintages.filter(x=>x.id!==vid);persist();syncToCloud();renderList();renderSearch();}
+
+// ── 飲み感 ──
+function openNomiSheet(sakeId,vintageId,nomiId){
+  curSakeId=sakeId;curVintageId=vintageId;editNomiId=nomiId||null;tRating=0;tasteVals={};
+  const sake=db.find(x=>x.id===sakeId);const v=sake.vintages.find(x=>x.id===vintageId);
+  const ym=v.month?v.year+'年'+v.month+'月':v.year+'年';
+  document.getElementById('nomi-sheet-title').textContent='飲み感';
+  document.getElementById('nomi-sheet-sub').textContent=sake.name+' · '+ym;
+  if(nomiId){const t=v.nomikans.find(x=>x.id===nomiId);document.getElementById('t-date').value=t.date||'';document.getElementById('t-place').value=t.place||'';document.getElementById('t-note').value=t.note||'';tRating=t.rating||0;TASTE_KEYS.forEach(k=>{tasteVals[k]=t.tastes?.[k]||3;});}
+  else{document.getElementById('t-date').value=new Date().toISOString().slice(0,10);document.getElementById('t-place').value='';document.getElementById('t-note').value='';TASTE_KEYS.forEach(k=>{tasteVals[k]=3;});}
+  updStars();buildTasteSliders();openSheet('nomi-bg','nomi-sheet');
+}
+function closeNomiSheet(){closeSheet('nomi-bg','nomi-sheet');}
+function saveNomi(){
+  const sake=db.find(x=>x.id===curSakeId);if(!sake)return;const v=sake.vintages.find(x=>x.id===curVintageId);if(!v)return;
+  const t={id:editNomiId||'t'+Date.now(),date:document.getElementById('t-date').value,place:document.getElementById('t-place').value.trim(),rating:tRating,tastes:{...tasteVals},note:document.getElementById('t-note').value.trim()};
+  if(editNomiId){const i=v.nomikans.findIndex(x=>x.id===editNomiId);v.nomikans[i]=t;}else v.nomikans.unshift(t);
+  persist();syncToCloud();closeNomiSheet();renderList();renderSearch();
+}
+function deleteNomi(sakeId,vid,nid){const sake=db.find(x=>x.id===sakeId);const v=sake.vintages.find(x=>x.id===vid);v.nomikans=v.nomikans.filter(x=>x.id!==nid);persist();syncToCloud();renderList();renderSearch();}
+
+// ── 展開 ──
+function toggleEl(id,chevId){const d=document.getElementById(id);const c=document.getElementById(chevId);if(!d)return;const open=d.style.display==='block';d.style.display=open?'none':'block';if(c)c.classList.toggle('open',!open);}
+
+// ── 最新表ラベル ──
+function latestFrontImg(sake){
+  const sorted=[...sake.vintages].sort((a,b)=>(+(b.year||0)*100+(+(b.month||0)))-(+(a.year||0)*100+(+(a.month||0))));
+  for(const v of sorted){if(v.frontImg)return v.frontImg;}return null;
+}
+
+// ── レンダリング ──
+function dots(v){return Array.from({length:5},(_,i)=>`<div class="dot${i<v?' on':''}"></div>`).join('');}
+function starsStr(n){return'★'.repeat(n)+'☆'.repeat(5-n);}
+function updateCount(){document.getElementById('sake-count').textContent=db.length?db.length+'銘柄':'';}
+function bestRating(sake){let best=0;sake.vintages.forEach(v=>(v.nomikans||[]).forEach(t=>{if((t.rating||0)>best)best=t.rating;}));return best;}
+function totalNomikans(sake){return sake.vintages.reduce((s,v)=>s+(v.nomikans||[]).length,0);}
+
+function nomiHTML(sakeId,vid,t){
+  return `<div class="nomi-block"><div class="nomi-toprow"><div class="nomi-meta"><strong>${t.date||'日付なし'}</strong>${t.place?' · '+t.place:''}<br>${t.rating?'総合 '+starsStr(t.rating):'評価なし'}</div><div class="nomi-actions"><button class="icon-btn" onclick="openNomiSheet('${sakeId}','${vid}','${t.id}')" aria-label="編集"><i class="fa fa-edit"></i></button><button class="icon-btn danger" onclick="deleteNomi('${sakeId}','${vid}','${t.id}')" aria-label="削除"><i class="fa fa-trash"></i></button></div></div><div class="taste-grid">${TASTE_KEYS.map(k=>`<div class="taste-cell"><div class="taste-cell-label">${k}</div><div class="dots">${dots(t.tastes?.[k]||0)}</div></div>`).join('')}</div>${t.note?`<div class="nomi-note-text">${t.note}</div>`:''}</div>`;
+}
+function vintageHTML(sakeId,v){
+  const bestV=(v.nomikans||[]).length?Math.max(...(v.nomikans||[]).map(t=>t.rating||0)):0;
+  const ym=v.month?v.year+'年'+v.month+'月':v.year+'年';
+  const vDetId='vdet-'+v.id;const vChevId='vchev-'+v.id;
+  const hasPhotos=v.frontImg||v.backImg;
+  return `<div class="vintage-block"><div class="vintage-header" onclick="toggleEl('${vDetId}','${vChevId}')"><div class="vintage-ym-badge">${ym}</div><div class="vintage-summary">${bestV?`<div class="vintage-best">${starsStr(bestV)}</div>`:''}<div class="vintage-count">${(v.nomikans||[]).length?'飲み感 '+(v.nomikans||[]).length+'回':'まだ記録なし'}</div></div><div class="vintage-actions" onclick="event.stopPropagation()"><button class="icon-btn" onclick="openVintageSheet('${sakeId}','${v.id}')" aria-label="編集"><i class="fa fa-edit"></i></button><button class="icon-btn danger" onclick="deleteVintage('${sakeId}','${v.id}')" aria-label="削除"><i class="fa fa-trash"></i></button></div><i class="fa fa-chevron-right vintage-chevron" id="${vChevId}"></i></div><div class="vintage-detail" id="${vDetId}" style="display:none">${hasPhotos?`<div class="label-photos"><div class="label-photo-wrap">${v.frontImg?`<img src="${v.frontImg}" class="photo-thumb-sm" alt="表ラベル"><div class="label-photo-cap">表ラベル</div>`:'<div class="label-photo-empty">写真なし</div>'}</div><div class="label-photo-wrap">${v.backImg?`<img src="${v.backImg}" class="photo-thumb-sm" alt="裏ラベル"><div class="label-photo-cap">裏ラベル</div>`:'<div class="label-photo-empty">写真なし</div>'}</div></div>`:''} ${v.note?`<div class="info-box" style="margin-bottom:10px">${v.note}</div>`:''}<div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:8px">飲み感の記録</div>${(v.nomikans||[]).map(t=>nomiHTML(sakeId,v.id,t)).join('')}<button class="add-btn" onclick="openNomiSheet('${sakeId}','${v.id}')"><i class="fa fa-plus"></i> 飲み感を追加</button></div></div>`;
+}
+function cardHTML(r){
+  const best=bestRating(r);const total=totalNomikans(r);
+  const detId='det-'+r.id;const chevId='chev-'+r.id;const thumb=latestFrontImg(r);
+  return `<div class="sake-card"><div class="card-header" onclick="toggleEl('${detId}','${chevId}')"><div class="card-label-img">${thumb?`<img src="${thumb}" alt="ラベル">`:'🍶'}</div><div class="card-body"><div class="card-name">${r.name}</div><div class="card-sub">${[r.kura,r.pref].filter(Boolean).join(' · ')}</div><div class="tag-row">${best?`<span class="tag tag-gold">${starsStr(best)}</span>`:''}${r.vintages.length?`<span class="tag tag-indigo">${r.vintages.length}年月 · ${total}回</span>`:''}</div></div><i class="fa fa-chevron-right card-chevron" id="${chevId}"></i></div><div class="card-detail" id="${detId}" style="display:none">${r.extra?`<div class="info-box">${r.extra}</div>`:''}<div class="det-topbar"><div class="section-label">製造年月ごとの記録</div><div class="det-actions"><button class="icon-btn" onclick="openSakeSheet('${r.id}')" aria-label="編集"><i class="fa fa-edit"></i></button><button class="icon-btn danger" onclick="deleteSake('${r.id}')" aria-label="削除"><i class="fa fa-trash"></i></button></div></div>${r.vintages.map(v=>vintageHTML(r.id,v)).join('')}<button class="add-btn add-vintage-btn" onclick="openVintageSheet('${r.id}')"><i class="fa fa-plus"></i> 製造年月を追加</button></div></div>`;
+}
+function filterAndSort(list){
+  const q=(document.getElementById('q').value||'').toLowerCase();const qextra=(document.getElementById('qextra').value||'').toLowerCase();const fpref=document.getElementById('fpref').value;const fsort=document.getElementById('fsort').value;
+  if(q)list=list.filter(r=>(r.name+(r.kura||'')).toLowerCase().includes(q));
+  if(qextra)list=list.filter(r=>(r.extra||'').toLowerCase().includes(qextra));
+  if(activeType)list=list.filter(r=>(r.extra||'').includes(activeType));
+  if(fpref)list=list.filter(r=>r.pref===fpref);
+  if(fsort==='rating')list.sort((a,b)=>bestRating(b)-bestRating(a));
+  return list;
+}
+function renderList(){updateCount();document.getElementById('list-container').innerHTML=db.length?db.map(cardHTML).join(''):`<div class="empty-state"><i class="fa fa-wine-bottle"></i><p>まだ記録がありません<br>右下の＋ボタンから<br>最初の一本を記録しましょう</p></div>`;}
+function renderSearch(){const list=filterAndSort([...db]);document.getElementById('search-results').innerHTML=list.length?list.map(cardHTML).join(''):`<div class="empty-state"><i class="fa fa-search"></i><p>該当する銘柄がありません</p></div>`;}
+
+// 起動時にクラウドから読み込み
+window.addEventListener('load',async()=>{
+  renderList();updateCount();
+  if(window._fbReady){await syncFromCloud();}
+  else{setSyncStatus('');}
+});
+// PWA Service Worker登録
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>

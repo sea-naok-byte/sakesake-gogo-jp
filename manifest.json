@@ -1,0 +1,19 @@
+{
+  "name": "日本酒メモ",
+  "short_name": "日本酒メモ",
+  "description": "日本酒の銘柄・製造年月・飲み感を記録するアプリ",
+  "start_url": "./sake_memo.html",
+  "display": "standalone",
+  "background_color": "#FAFAF8",
+  "theme_color": "#5C4A2A",
+  "orientation": "portrait",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%235C4A2A'/><text x='96' y='130' font-size='100' text-anchor='middle'>🍶</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
