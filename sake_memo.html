@@ -306,7 +306,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
         <button class="photo-trigger-btn" style="padding:12px 8px" onclick="document.getElementById('v-front-camera').click()"><i class="fa fa-camera"></i><span>カメラ</span></button>
         <button class="photo-trigger-btn sec" style="padding:12px 8px" onclick="document.getElementById('v-front-lib').click()"><i class="fa fa-image"></i><span>ライブラリ</span></button>
       </div>
-      <img id="v-front-prev" class="photo-thumb" style="display:none" alt="表ラベル">
+      <div id="v-front-preview-wrap" style="display:none;position:relative;margin-bottom:6px">
+        <img id="v-front-prev" class="photo-thumb" style="margin-bottom:0" alt="表ラベル">
+        <button onclick="clearPhoto('front')" style="position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.55);border:none;color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="fa fa-times"></i></button>
+      </div>
     </div>
     <div class="sfield">
       <label>裏ラベルの写真</label>
@@ -316,7 +319,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
         <button class="photo-trigger-btn" style="padding:12px 8px" onclick="document.getElementById('v-back-camera').click()"><i class="fa fa-camera"></i><span>カメラ</span></button>
         <button class="photo-trigger-btn sec" style="padding:12px 8px" onclick="document.getElementById('v-back-lib').click()"><i class="fa fa-image"></i><span>ライブラリ</span></button>
       </div>
-      <img id="v-back-prev" class="photo-thumb" style="display:none" alt="裏ラベル">
+      <div id="v-back-preview-wrap" style="display:none;position:relative;margin-bottom:6px">
+        <img id="v-back-prev" class="photo-thumb" style="margin-bottom:0" alt="裏ラベル">
+        <button onclick="clearPhoto('back')" style="position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.55);border:none;color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="fa fa-times"></i></button>
+      </div>
     </div>
     <div class="sfield"><label>メモ（この製造年月について）</label><textarea id="v-note" placeholder="例：特別限定品、受賞歴など"></textarea></div>
   </div>
@@ -641,15 +647,31 @@ function openVintageSheet(sakeId,vintageId){
   document.getElementById('vintage-sheet-title').textContent=vintageId?'製造年月を編集':'製造年月を追加';
   document.getElementById('vintage-sheet-sub').textContent=sake.name;
   ['v-front-camera','v-front-lib','v-back-camera','v-back-lib'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
-  document.getElementById('v-front-prev').style.display='none';document.getElementById('v-back-prev').style.display='none';
+  document.getElementById('v-front-preview-wrap').style.display='none';
+  document.getElementById('v-back-preview-wrap').style.display='none';
   if(vintageId){
     const v=sake.vintages.find(x=>x.id===vintageId);
     document.getElementById('v-year').value=v.year||'';document.getElementById('v-month').value=v.month||'';document.getElementById('v-note').value=v.note||'';
     vFrontImg=v.frontImg||null;vBackImg=v.backImg||null;
-    if(vFrontImg){const p=document.getElementById('v-front-prev');p.src=vFrontImg;p.style.display='block';}
-    if(vBackImg){const p=document.getElementById('v-back-prev');p.src=vBackImg;p.style.display='block';}
+    if(vFrontImg){const p=document.getElementById('v-front-prev');p.src=vFrontImg;document.getElementById('v-front-preview-wrap').style.display='block';}
+    if(vBackImg){const p=document.getElementById('v-back-prev');p.src=vBackImg;document.getElementById('v-back-preview-wrap').style.display='block';}
   }else{document.getElementById('v-year').value='';document.getElementById('v-month').value='';document.getElementById('v-note').value='';}
   openSheet('vintage-bg','vintage-sheet');
+}
+function clearPhoto(side){
+  if(side==='front'){
+    vFrontImg=null;
+    document.getElementById('v-front-prev').src='';
+    document.getElementById('v-front-preview-wrap').style.display='none';
+    document.getElementById('v-front-camera').value='';
+    document.getElementById('v-front-lib').value='';
+  }else{
+    vBackImg=null;
+    document.getElementById('v-back-prev').src='';
+    document.getElementById('v-back-preview-wrap').style.display='none';
+    document.getElementById('v-back-camera').value='';
+    document.getElementById('v-back-lib').value='';
+  }
 }
 function closeVintageSheet(){closeSheet('vintage-bg','vintage-sheet');}
 function onVintagePhoto(e,side){
@@ -657,8 +679,8 @@ function onVintagePhoto(e,side){
   const r=new FileReader();
   r.onload=async ev=>{
     const thumb=await compressImage(ev.target.result,800,1200,.75);
-    if(side==='front'){vFrontImg=thumb;const p=document.getElementById('v-front-prev');p.src=ev.target.result;p.style.display='block';}
-    else{vBackImg=thumb;const p=document.getElementById('v-back-prev');p.src=ev.target.result;p.style.display='block';}
+    if(side==='front'){vFrontImg=thumb;const p=document.getElementById('v-front-prev');p.src=ev.target.result;document.getElementById('v-front-preview-wrap').style.display='block';}
+    else{vBackImg=thumb;const p=document.getElementById('v-back-prev');p.src=ev.target.result;document.getElementById('v-back-preview-wrap').style.display='block';}
   };
   r.readAsDataURL(file);
 }
