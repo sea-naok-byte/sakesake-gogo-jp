@@ -550,6 +550,7 @@ async function syncFromCloud(){
 }
 async function syncNow(){
   if(!window._fbReady){showToast('⚙️ 設定からFirebaseを設定してください');openSettings();return;}
+  showToast('同期中...画像がある場合は少し時間がかかります');
   await syncFromCloud();
 }
 function setSyncStatus(s){
@@ -657,9 +658,9 @@ function saveSake(){
   const name=document.getElementById('f-name').value.trim();if(!name){document.getElementById('f-name').focus();return;}
   const rec={id:editSakeId||Date.now().toString(),name,kura:document.getElementById('f-kura').value.trim(),pref:document.getElementById('f-pref').value,shu:document.getElementById('f-shu').value,seimi:document.getElementById('f-seimi').value.trim(),extra:document.getElementById('f-extra').value.trim(),vintages:[],createdAt:Date.now()};
   if(editSakeId){const i=db.findIndex(x=>x.id===editSakeId);rec.vintages=db[i].vintages||[];db[i]=rec;}else db.unshift(rec);
-  persist();syncToCloud();closeSakeSheet();renderList();renderSearch();updateCount();
+  persist();closeSakeSheet();renderList();renderSearch();updateCount();showToast('保存しました');
 }
-function deleteSake(id){if(!confirm('この銘柄をすべての製造年月ごと削除しますか？'))return;db=db.filter(x=>x.id!==id);persist();syncToCloud();renderList();renderSearch();updateCount();}
+function deleteSake(id){if(!confirm('この銘柄をすべての製造年月ごと削除しますか？'))return;db=db.filter(x=>x.id!==id);persist();renderList();renderSearch();updateCount();}
 
 // ── 製造年月 ──
 function openVintageSheet(sakeId,vintageId){
@@ -711,9 +712,9 @@ function saveVintage(){
   const v={id:editVintageId||'v'+Date.now(),year,month:document.getElementById('v-month').value,frontImg:vFrontImg,backImg:vBackImg,note:document.getElementById('v-note').value.trim(),nomikans:[]};
   if(editVintageId){const i=sake.vintages.findIndex(x=>x.id===editVintageId);v.nomikans=sake.vintages[i].nomikans||[];sake.vintages[i]=v;}
   else sake.vintages.unshift(v);
-  persist();syncToCloud();closeVintageSheet();renderList();renderSearch();
+  persist();closeVintageSheet();renderList();renderSearch();showToast('保存しました');
 }
-function deleteVintage(sakeId,vid){if(!confirm('この製造年月の記録をすべて削除しますか？'))return;const sake=db.find(x=>x.id===sakeId);sake.vintages=sake.vintages.filter(x=>x.id!==vid);persist();syncToCloud();renderList();renderSearch();}
+function deleteVintage(sakeId,vid){if(!confirm('この製造年月の記録をすべて削除しますか？'))return;const sake=db.find(x=>x.id===sakeId);sake.vintages=sake.vintages.filter(x=>x.id!==vid);persist();renderList();renderSearch();}
 
 // ── 飲み感 ──
 function openNomiSheet(sakeId,vintageId,nomiId){
@@ -731,9 +732,9 @@ function saveNomi(){
   const sake=db.find(x=>x.id===curSakeId);if(!sake)return;const v=sake.vintages.find(x=>x.id===curVintageId);if(!v)return;
   const t={id:editNomiId||'t'+Date.now(),date:document.getElementById('t-date').value,place:document.getElementById('t-place').value.trim(),rating:tRating,tastes:{...tasteVals},note:document.getElementById('t-note').value.trim()};
   if(editNomiId){const i=v.nomikans.findIndex(x=>x.id===editNomiId);v.nomikans[i]=t;}else v.nomikans.unshift(t);
-  persist();syncToCloud();closeNomiSheet();renderList();renderSearch();
+  persist();closeNomiSheet();renderList();renderSearch();showToast('保存しました');
 }
-function deleteNomi(sakeId,vid,nid){const sake=db.find(x=>x.id===sakeId);const v=sake.vintages.find(x=>x.id===vid);v.nomikans=v.nomikans.filter(x=>x.id!==nid);persist();syncToCloud();renderList();renderSearch();}
+function deleteNomi(sakeId,vid,nid){const sake=db.find(x=>x.id===sakeId);const v=sake.vintages.find(x=>x.id===vid);v.nomikans=v.nomikans.filter(x=>x.id!==nid);persist();renderList();renderSearch();}
 
 // ── 展開 ──
 function toggleEl(id,chevId){const d=document.getElementById(id);const c=document.getElementById(chevId);if(!d)return;const open=d.style.display==='block';d.style.display=open?'none':'block';if(c)c.classList.toggle('open',!open);}
