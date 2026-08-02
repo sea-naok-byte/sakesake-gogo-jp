@@ -523,6 +523,11 @@ async function uploadAllImages(){
 // ── Firebase同期（テキストデータ） ──
 async function syncToCloud(){
   if(!window._fbReady)return;
+  // ローカルが空の場合はクラウドを上書きしない
+  if(db.length===0){
+    console.log('ローカルが空のためクラウドへの上書きをスキップ');
+    return;
+  }
   setSyncStatus('syncing');
   try{
     // まず画像をCloudinaryにアップロード
@@ -540,11 +545,39 @@ async function syncFromCloud(){
     const snap=await window._fbGetDoc(window._fbDoc(window._db,'sake_memo','data'));
     if(snap.exists()){
       const remote=JSON.parse(snap.data().payload||'[]');
-      db=remote;
-      persist();renderList();renderSearch();updateCount();
-      setSyncStatus('ok');showToast('クラウドから読み込みました');
+      // クラウドのデータがある場合はローカルより優先（マージ）
+      if(remote.length>0){
+        // ローカルにある画像URLをマージ
+        const localImgMap={};
+        db.forEach(r=>{
+          localImgMap[r.id]={};
+          (r.vintages||[]).forEach(v=>{
+            localImgMap[r.id][v.id]={
+              frontImg:v.frontImg||null,
+              backImg:v.backImg||null
+            };
+          });
+        });
+        db=remote.map(r=>({
+          ...r,
+          vintages:(r.vintages||[]).map(v=>({
+            ...v,
+            // クラウドにURLがあればそれを使い、なければローカルの画像を使う
+            frontImg:v.frontImg||(localImgMap[r.id]&&localImgMap[r.id][v.id]&&localImgMap[r.id][v.id].frontImg)||null,
+            backImg:v.backImg||(localImgMap[r.id]&&localImgMap[r.id][v.id]&&localImgMap[r.id][v.id].backImg)||null,
+          }))
+        }));
+        persist();renderList();renderSearch();updateCount();
+        setSyncStatus('ok');showToast('クラウドから読み込みました');
+      } else if(db.length>0){
+        // クラウドが空でローカルにデータがある場合はローカルをアップロード
+        await syncToCloud();
+      } else {
+        setSyncStatus('ok');
+      }
     }else{
-      await syncToCloud();
+      // Firestoreにデータがない場合のみローカルをアップロード
+      if(db.length>0)await syncToCloud();
     }
   }catch(e){setSyncStatus('err');showToast('同期に失敗しました');console.error(e);}
 }
