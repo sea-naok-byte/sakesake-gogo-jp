@@ -415,14 +415,17 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,doc,setDoc,getDoc}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-window._fbReady=false;window._db=null;
+import{getStorage,ref,uploadString,getDownloadURL}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+window._fbReady=false;window._db=null;window._storage=null;
 window._fbInit=async function(){
   const cfg=JSON.parse(localStorage.getItem('sake_fb_config')||'null');
   if(!cfg||!cfg.apiKey||!cfg.projectId)return false;
   try{
-    const app=initializeApp({apiKey:cfg.apiKey,authDomain:cfg.projectId+'.firebaseapp.com',projectId:cfg.projectId,appId:cfg.appId});
+    const app=initializeApp({apiKey:cfg.apiKey,authDomain:cfg.projectId+'.firebaseapp.com',projectId:cfg.projectId,storageBucket:cfg.projectId+'.appspot.com',appId:cfg.appId});
     window._db=getFirestore(app);
+    window._storage=getStorage(app);
     window._fbSetDoc=setDoc;window._fbGetDoc=getDoc;window._fbDoc=doc;
+    window._fbRef=ref;window._fbUploadString=uploadString;window._fbGetDownloadURL=getDownloadURL;
     window._fbReady=true;
     return true;
   }catch(e){console.error('Firebase init error',e);return false;}
@@ -472,14 +475,48 @@ function compressImage(dataUrl,maxW,maxH,q){
 }
 
 // ── Firebase同期 ──
+
+// 画像をStorageにアップロードしてURLを返す
+async function uploadImageIfNeeded(dataUrl, path){
+  if(!dataUrl||!window._storage)return dataUrl;
+  // すでにhttpsのURLならそのまま返す（アップロード済み）
+  if(dataUrl.startsWith('https://'))return dataUrl;
+  try{
+    const r=window._fbRef(window._storage, path);
+    const base64=dataUrl.split(',')[1];
+    const fmt=dataUrl.includes('image/png')?'data_url':'data_url';
+    await window._fbUploadString(r, dataUrl, fmt);
+    const url=await window._fbGetDownloadURL(r);
+    return url;
+  }catch(e){console.error('画像アップロード失敗',e);return dataUrl;}
+}
+
+// 全画像をStorageにアップロードしてdbのURLを置き換える
+async function uploadAllImages(){
+  for(const r of db){
+    for(const v of (r.vintages||[])){
+      if(v.frontImg&&!v.frontImg.startsWith('https://')){
+        v.frontImg=await uploadImageIfNeeded(v.frontImg,`images/${r.id}/${v.id}/front.jpg`);
+      }
+      if(v.backImg&&!v.backImg.startsWith('https://')){
+        v.backImg=await uploadImageIfNeeded(v.backImg,`images/${r.id}/${v.id}/back.jpg`);
+      }
+    }
+  }
+  persist();
+}
+
 async function syncToCloud(){
   if(!window._fbReady)return;
   setSyncStatus('syncing');
   try{
+    // 画像をStorageにアップロードしてURLに変換
+    await uploadAllImages();
     await window._fbSetDoc(window._fbDoc(window._db,'sake_memo','data'),{payload:JSON.stringify(db),updatedAt:Date.now()});
     setSyncStatus('ok');showToast('クラウドに保存しました');
   }catch(e){setSyncStatus('err');showToast('同期に失敗しました');console.error(e);}
 }
+
 async function syncFromCloud(){
   if(!window._fbReady)return;
   setSyncStatus('syncing');
@@ -487,7 +524,8 @@ async function syncFromCloud(){
     const snap=await window._fbGetDoc(window._fbDoc(window._db,'sake_memo','data'));
     if(snap.exists()){
       const remote=JSON.parse(snap.data().payload||'[]');
-      db=remote;persist();renderList();renderSearch();updateCount();
+      db=remote;
+      persist();renderList();renderSearch();updateCount();
       setSyncStatus('ok');showToast('クラウドから読み込みました');
     }else{
       await syncToCloud();
