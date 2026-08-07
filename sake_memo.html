@@ -404,16 +404,14 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     </div>
 
     <div style="height:1px;background:var(--border);margin:14px 0"></div>
-    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">① Firebase（テキストデータ同期）</div>
+    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">Firestore（テキストデータ）</div>
     <div class="sfield"><label>apiKey</label><input id="fb-apikey" type="text" placeholder="AIzaSy..."></div>
     <div class="sfield"><label>projectId</label><input id="fb-projectid" type="text" placeholder="sake-memo-xxxxx"></div>
     <div class="sfield"><label>appId</label><input id="fb-appid" type="text" placeholder="1:123456789:web:abc..."></div>
-
-    <div style="height:1px;background:var(--border);margin:14px 0"></div>
-    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px">② Cloudinary（写真のクラウド保存・無料）</div>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.6">cloudinary.com のダッシュボードで確認できます。<br>「Settings」→「Upload」→「Upload presets」で Unsigned プリセットを作成してください。</div>
-    <div class="sfield"><label>Cloud Name</label><input id="cld-cloudname" type="text" placeholder="例：abc123"></div>
-    <div class="sfield"><label>Upload Preset（Unsigned）</label><input id="cld-preset" type="text" placeholder="例：ml_default"></div>
+    <div style="height:1px;background:var(--border);margin:12px 0"></div>
+    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px">Realtime Database（写真データ）</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.6">Firebase ConsoleのRealtime Databaseに表示されているURLを入力してください。<br>例：https://プロジェクト名-default-rtdb.firebaseio.com</div>
+    <div class="sfield"><label>Realtime Database URL</label><input id="fb-rtdb-url" type="url" placeholder="https://xxxx-default-rtdb.firebaseio.com"></div>
 
     <div id="fb-status-msg" style="display:none;font-size:12px;padding:10px 12px;border-radius:var(--radius-sm);margin-top:4px"></div>
   </div>
@@ -428,14 +426,25 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,doc,setDoc,getDoc}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-window._fbReady=false;window._db=null;
+import{getDatabase,ref,set,get}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+window._fbReady=false;window._db=null;window._rtdb=null;
 window._fbInit=async function(){
   const cfg=JSON.parse(localStorage.getItem('sake_fb_config')||'null');
   if(!cfg||!cfg.apiKey||!cfg.projectId)return false;
   try{
-    const app=initializeApp({apiKey:cfg.apiKey,authDomain:cfg.projectId+'.firebaseapp.com',projectId:cfg.projectId,appId:cfg.appId});
+    const app=initializeApp({
+      apiKey:cfg.apiKey,
+      authDomain:cfg.projectId+'.firebaseapp.com',
+      projectId:cfg.projectId,
+      appId:cfg.appId,
+      databaseURL:cfg.rtdbUrl||''
+    });
     window._db=getFirestore(app);
     window._fbSetDoc=setDoc;window._fbGetDoc=getDoc;window._fbDoc=doc;
+    if(cfg.rtdbUrl){
+      window._rtdb=getDatabase(app);
+      window._rtdbRef=ref;window._rtdbSet=set;window._rtdbGet=get;
+    }
     window._fbReady=true;
     return true;
   }catch(e){console.error('Firebase init error',e);return false;}
@@ -484,58 +493,73 @@ function compressImage(dataUrl,maxW,maxH,q){
   });
 }
 
-// ── Cloudinary 画像アップロード ──
-async function uploadToCloudinary(dataUrl){
-  // すでにCloudinaryのURLならスキップ
-  if(!dataUrl||dataUrl.startsWith('https://res.cloudinary.com'))return dataUrl;
-  const cfg=JSON.parse(localStorage.getItem('sake_cloudinary_config')||'null');
-  if(!cfg||!cfg.cloudName||!cfg.uploadPreset)return dataUrl;
+// ── Firebase同期 ──
+// 画像をRTDBに、テキストをFirestoreに分けて保存
+
+// dbから画像だけ抽出してRTDBに保存
+async function syncImagesToRTDB(){
+  if(!window._rtdb)return;
+  const imgData={};
+  db.forEach(r=>{
+    imgData[r.id]={};
+    (r.vintages||[]).forEach(v=>{
+      imgData[r.id][v.id]={
+        frontImg:v.frontImg||null,
+        backImg:v.backImg||null
+      };
+    });
+  });
+  await window._rtdbSet(window._rtdbRef(window._rtdb,'sake_images'),imgData);
+}
+
+// RTDBから画像を取得してdbにマージ
+async function mergeImagesFromRTDB(){
+  if(!window._rtdb)return;
   try{
-    const base64=dataUrl.split(',')[1];
-    const fd=new FormData();
-    fd.append('file','data:image/jpeg;base64,'+base64);
-    fd.append('upload_preset',cfg.uploadPreset);
-    fd.append('folder','sake_memo');
-    const res=await fetch(`https://api.cloudinary.com/v1_1/${cfg.cloudName}/image/upload`,{method:'POST',body:fd});
-    const data=await res.json();
-    if(data.secure_url)return data.secure_url;
-    throw new Error(data.error?.message||'upload failed');
-  }catch(e){console.error('Cloudinary upload error',e);return dataUrl;}
+    const snap=await window._rtdbGet(window._rtdbRef(window._rtdb,'sake_images'));
+    if(!snap.exists())return;
+    const imgData=snap.val();
+    db=db.map(r=>({
+      ...r,
+      vintages:(r.vintages||[]).map(v=>({
+        ...v,
+        frontImg:(imgData[r.id]&&imgData[r.id][v.id]&&imgData[r.id][v.id].frontImg)||v.frontImg||null,
+        backImg:(imgData[r.id]&&imgData[r.id][v.id]&&imgData[r.id][v.id].backImg)||v.backImg||null,
+      }))
+    }));
+    persist();
+  }catch(e){console.error('RTDB画像取得エラー',e);}
 }
 
-// 全画像をCloudinaryにアップロード
-async function uploadAllImages(){
-  const cfg=JSON.parse(localStorage.getItem('sake_cloudinary_config')||'null');
-  if(!cfg)return;
-  for(const r of db){
-    for(const v of (r.vintages||[])){
-      if(v.frontImg&&!v.frontImg.startsWith('https://res.cloudinary.com')){
-        v.frontImg=await uploadToCloudinary(v.frontImg);
-      }
-      if(v.backImg&&!v.backImg.startsWith('https://res.cloudinary.com')){
-        v.backImg=await uploadToCloudinary(v.backImg);
-      }
-    }
-  }
-  persist();
+// 画像を除いたテキストデータをFirestoreに保存
+function stripImagesForFirestore(data){
+  return data.map(r=>({
+    ...r,
+    vintages:(r.vintages||[]).map(v=>({
+      ...v,
+      frontImg:null,
+      backImg:null
+    }))
+  }));
 }
 
-// ── Firebase同期（テキストデータ） ──
 async function syncToCloud(){
   if(!window._fbReady)return;
-  // ローカルが空の場合はクラウドを上書きしない
-  if(db.length===0){
-    console.log('ローカルが空のためクラウドへの上書きをスキップ');
-    return;
-  }
+  if(db.length===0){console.log('ローカルが空のためスキップ');return;}
   setSyncStatus('syncing');
   try{
-    // まず画像をCloudinaryにアップロード
-    await uploadAllImages();
-    // テキストデータ＋CloudinaryのURLをFirestoreに保存
-    await window._fbSetDoc(window._fbDoc(window._db,'sake_memo','data'),{payload:JSON.stringify(db),updatedAt:Date.now()});
+    // テキストデータをFirestoreに保存（画像除く）
+    const textOnly=stripImagesForFirestore(db);
+    await window._fbSetDoc(window._fbDoc(window._db,'sake_memo','data'),{
+      payload:JSON.stringify(textOnly),
+      updatedAt:Date.now()
+    });
+    // 画像をRTDBに保存
+    if(window._rtdb)await syncImagesToRTDB();
     setSyncStatus('ok');showToast('クラウドに保存しました');
-  }catch(e){setSyncStatus('err');showToast('同期に失敗しました');console.error(e);}
+  }catch(e){
+    setSyncStatus('err');showToast('同期に失敗しました');console.error(e);
+  }
 }
 
 async function syncFromCloud(){
@@ -545,45 +569,43 @@ async function syncFromCloud(){
     const snap=await window._fbGetDoc(window._fbDoc(window._db,'sake_memo','data'));
     if(snap.exists()){
       const remote=JSON.parse(snap.data().payload||'[]');
-      // クラウドのデータがある場合はローカルより優先（マージ）
       if(remote.length>0){
-        // ローカルにある画像URLをマージ
+        // ローカルの画像を一時保存
         const localImgMap={};
         db.forEach(r=>{
           localImgMap[r.id]={};
           (r.vintages||[]).forEach(v=>{
-            localImgMap[r.id][v.id]={
-              frontImg:v.frontImg||null,
-              backImg:v.backImg||null
-            };
+            localImgMap[r.id][v.id]={frontImg:v.frontImg||null,backImg:v.backImg||null};
           });
         });
+        // Firestoreのテキストデータを反映
         db=remote.map(r=>({
           ...r,
           vintages:(r.vintages||[]).map(v=>({
             ...v,
-            // クラウドにURLがあればそれを使い、なければローカルの画像を使う
-            frontImg:v.frontImg||(localImgMap[r.id]&&localImgMap[r.id][v.id]&&localImgMap[r.id][v.id].frontImg)||null,
-            backImg:v.backImg||(localImgMap[r.id]&&localImgMap[r.id][v.id]&&localImgMap[r.id][v.id].backImg)||null,
+            frontImg:(localImgMap[r.id]&&localImgMap[r.id][v.id]&&localImgMap[r.id][v.id].frontImg)||null,
+            backImg:(localImgMap[r.id]&&localImgMap[r.id][v.id]&&localImgMap[r.id][v.id].backImg)||null,
           }))
         }));
-        persist();renderList();renderSearch();updateCount();
+        persist();
+        // RTDBから画像をマージ
+        await mergeImagesFromRTDB();
+        renderList();renderSearch();updateCount();
         setSyncStatus('ok');showToast('クラウドから読み込みました');
-      } else if(db.length>0){
-        // クラウドが空でローカルにデータがある場合はローカルをアップロード
+      }else if(db.length>0){
         await syncToCloud();
-      } else {
+      }else{
         setSyncStatus('ok');
       }
     }else{
-      // Firestoreにデータがない場合のみローカルをアップロード
       if(db.length>0)await syncToCloud();
     }
   }catch(e){setSyncStatus('err');showToast('同期に失敗しました');console.error(e);}
 }
+
 async function syncNow(){
   if(!window._fbReady){showToast('⚙️ 設定からFirebaseを設定してください');openSettings();return;}
-  showToast('同期中...画像がある場合は少し時間がかかります');
+  showToast('同期中...');
   await syncFromCloud();
 }
 function setSyncStatus(s){
@@ -608,33 +630,31 @@ function openSettings(){
   document.getElementById('fb-apikey').value=cfg.apiKey||'';
   document.getElementById('fb-projectid').value=cfg.projectId||'';
   document.getElementById('fb-appid').value=cfg.appId||'';
-  const cld=JSON.parse(localStorage.getItem('sake_cloudinary_config')||'{}');
-  document.getElementById('cld-cloudname').value=cld.cloudName||'';
-  document.getElementById('cld-preset').value=cld.uploadPreset||'';
+  document.getElementById('fb-rtdb-url').value=cfg.rtdbUrl||'';
   const msg=document.getElementById('fb-status-msg');
   if(window._fbReady){
     msg.style.display='block';msg.style.background='var(--green-light)';msg.style.color='var(--green)';
-    msg.textContent='✅ Firebase同期が有効です';
+    const rtdbOk=!!window._rtdb;
+    msg.textContent='✅ Firebase同期が有効です'+(rtdbOk?' ・ 写真はRealtime Databaseに保存':'');
   }else{msg.style.display='none';}
   openSheet('settings-bg','settings-sheet');
 }
 function closeSettings(){closeSheet('settings-bg','settings-sheet');}
 async function saveFirebaseConfig(){
-  // Cloudinary設定を保存
-  const cld={cloudName:document.getElementById('cld-cloudname').value.trim(),uploadPreset:document.getElementById('cld-preset').value.trim()};
-  if(cld.cloudName&&cld.uploadPreset){
-    localStorage.setItem('sake_cloudinary_config',JSON.stringify(cld));
-  }
   // Firebase設定を保存
-  const cfg={apiKey:document.getElementById('fb-apikey').value.trim(),projectId:document.getElementById('fb-projectid').value.trim(),appId:document.getElementById('fb-appid').value.trim()};
+  const cfg={
+    apiKey:document.getElementById('fb-apikey').value.trim(),
+    projectId:document.getElementById('fb-projectid').value.trim(),
+    appId:document.getElementById('fb-appid').value.trim(),
+    rtdbUrl:document.getElementById('fb-rtdb-url').value.trim()
+  };
   if(!cfg.apiKey||!cfg.projectId){showToast('Firebase の apiKey と projectId は必須です');return;}
   localStorage.setItem('sake_fb_config',JSON.stringify(cfg));
   const ok=await window._fbInit();
   const msg=document.getElementById('fb-status-msg');
   if(ok){
     msg.style.display='block';msg.style.background='var(--green-light)';msg.style.color='var(--green)';
-    const cldOk=cld.cloudName&&cld.uploadPreset;
-    msg.textContent='✅ 接続成功！'+(cldOk?'写真もクラウドに同期します':'Firebase同期を開始します');
+    msg.textContent='✅ 接続成功！クラウドに同期します';
     await syncToCloud();
     setTimeout(closeSettings,1800);
   }else{
@@ -645,7 +665,6 @@ async function saveFirebaseConfig(){
 function clearFirebaseConfig(){
   if(!confirm('すべての設定を削除します。ローカルのデータは残ります。'))return;
   localStorage.removeItem('sake_fb_config');
-  localStorage.removeItem('sake_cloudinary_config');
   window._fbReady=false;window._db=null;
   setSyncStatus('');showToast('設定を削除しました');closeSettings();
 }
@@ -733,7 +752,7 @@ function onVintagePhoto(e,side){
   const file=e.target.files[0];if(!file)return;
   const r=new FileReader();
   r.onload=async ev=>{
-    const thumb=await compressImage(ev.target.result,800,1200,.75);
+    const thumb=await compressImage(ev.target.result,400,600,.60);
     if(side==='front'){vFrontImg=thumb;const p=document.getElementById('v-front-prev');p.src=ev.target.result;document.getElementById('v-front-preview-wrap').style.display='block';}
     else{vBackImg=thumb;const p=document.getElementById('v-back-prev');p.src=ev.target.result;document.getElementById('v-back-preview-wrap').style.display='block';}
   };
