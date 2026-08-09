@@ -543,19 +543,27 @@ function stripImagesForFirestore(data){
   }));
 }
 
+// ローカルの最終更新日時を記録
+function updateLocalTimestamp(){
+  localStorage.setItem('sake_local_updated', Date.now().toString());
+}
+
 async function syncToCloud(){
   if(!window._fbReady)return;
   if(db.length===0){console.log('ローカルが空のためスキップ');return;}
   setSyncStatus('syncing');
   try{
+    const now=Date.now();
     // テキストデータをFirestoreに保存（画像除く）
     const textOnly=stripImagesForFirestore(db);
     await window._fbSetDoc(window._fbDoc(window._db,'sake_memo','data'),{
       payload:JSON.stringify(textOnly),
-      updatedAt:Date.now()
+      updatedAt:now
     });
     // 画像をRTDBに保存
     if(window._rtdb)await syncImagesToRTDB();
+    // ローカルのタイムスタンプをクラウドと合わせる
+    localStorage.setItem('sake_local_updated', now.toString());
     setSyncStatus('ok');showToast('クラウドに保存しました');
   }catch(e){
     setSyncStatus('err');showToast('同期に失敗しました');console.error(e);
@@ -568,7 +576,28 @@ async function syncFromCloud(){
   try{
     const snap=await window._fbGetDoc(window._fbDoc(window._db,'sake_memo','data'));
     if(snap.exists()){
+      const cloudUpdatedAt=snap.data().updatedAt||0;
+      const localUpdatedAt=parseInt(localStorage.getItem('sake_local_updated')||'0');
       const remote=JSON.parse(snap.data().payload||'[]');
+
+      if(remote.length===0&&db.length>0){
+        // クラウドが空でローカルにデータがある→ローカルをアップロード
+        await syncToCloud();
+        return;
+      }
+
+      if(remote.length===0&&db.length===0){
+        setSyncStatus('ok');return;
+      }
+
+      // ローカルの方が新しい場合はローカルをアップロード
+      if(localUpdatedAt>cloudUpdatedAt&&db.length>0){
+        console.log('ローカルの方が新しいためアップロード');
+        await syncToCloud();
+        return;
+      }
+
+      // クラウドの方が新しい（または同じ）場合はクラウドを反映
       if(remote.length>0){
         // ローカルの画像を一時保存
         const localImgMap={};
@@ -588,16 +617,14 @@ async function syncFromCloud(){
           }))
         }));
         persist();
+        localStorage.setItem('sake_local_updated', cloudUpdatedAt.toString());
         // RTDBから画像をマージ
         await mergeImagesFromRTDB();
         renderList();renderSearch();updateCount();
         setSyncStatus('ok');showToast('クラウドから読み込みました');
-      }else if(db.length>0){
-        await syncToCloud();
-      }else{
-        setSyncStatus('ok');
       }
     }else{
+      // Firestoreにデータなし→ローカルをアップロード
       if(db.length>0)await syncToCloud();
     }
   }catch(e){setSyncStatus('err');showToast('同期に失敗しました');console.error(e);}
@@ -710,9 +737,9 @@ function saveSake(){
   const name=document.getElementById('f-name').value.trim();if(!name){document.getElementById('f-name').focus();return;}
   const rec={id:editSakeId||Date.now().toString(),name,kura:document.getElementById('f-kura').value.trim(),pref:document.getElementById('f-pref').value,shu:document.getElementById('f-shu').value,seimi:document.getElementById('f-seimi').value.trim(),extra:document.getElementById('f-extra').value.trim(),vintages:[],createdAt:Date.now()};
   if(editSakeId){const i=db.findIndex(x=>x.id===editSakeId);rec.vintages=db[i].vintages||[];db[i]=rec;}else db.unshift(rec);
-  persist();closeSakeSheet();renderList();renderSearch();updateCount();showToast('保存しました');
+  persist();updateLocalTimestamp();closeSakeSheet();renderList();renderSearch();updateCount();showToast('保存しました');
 }
-function deleteSake(id){if(!confirm('この銘柄をすべての製造年月ごと削除しますか？'))return;db=db.filter(x=>x.id!==id);persist();renderList();renderSearch();updateCount();}
+function deleteSake(id){if(!confirm('この銘柄をすべての製造年月ごと削除しますか？'))return;db=db.filter(x=>x.id!==id);persist();updateLocalTimestamp();renderList();renderSearch();updateCount();}
 
 // ── 製造年月 ──
 function openVintageSheet(sakeId,vintageId){
@@ -764,9 +791,9 @@ function saveVintage(){
   const v={id:editVintageId||'v'+Date.now(),year,month:document.getElementById('v-month').value,frontImg:vFrontImg,backImg:vBackImg,note:document.getElementById('v-note').value.trim(),nomikans:[]};
   if(editVintageId){const i=sake.vintages.findIndex(x=>x.id===editVintageId);v.nomikans=sake.vintages[i].nomikans||[];sake.vintages[i]=v;}
   else sake.vintages.unshift(v);
-  persist();closeVintageSheet();renderList();renderSearch();showToast('保存しました');
+  persist();updateLocalTimestamp();closeVintageSheet();renderList();renderSearch();showToast('保存しました');
 }
-function deleteVintage(sakeId,vid){if(!confirm('この製造年月の記録をすべて削除しますか？'))return;const sake=db.find(x=>x.id===sakeId);sake.vintages=sake.vintages.filter(x=>x.id!==vid);persist();renderList();renderSearch();}
+function deleteVintage(sakeId,vid){if(!confirm('この製造年月の記録をすべて削除しますか？'))return;const sake=db.find(x=>x.id===sakeId);sake.vintages=sake.vintages.filter(x=>x.id!==vid);persist();updateLocalTimestamp();renderList();renderSearch();}
 
 // ── 飲み感 ──
 function openNomiSheet(sakeId,vintageId,nomiId){
@@ -784,9 +811,9 @@ function saveNomi(){
   const sake=db.find(x=>x.id===curSakeId);if(!sake)return;const v=sake.vintages.find(x=>x.id===curVintageId);if(!v)return;
   const t={id:editNomiId||'t'+Date.now(),date:document.getElementById('t-date').value,place:document.getElementById('t-place').value.trim(),rating:tRating,tastes:{...tasteVals},note:document.getElementById('t-note').value.trim()};
   if(editNomiId){const i=v.nomikans.findIndex(x=>x.id===editNomiId);v.nomikans[i]=t;}else v.nomikans.unshift(t);
-  persist();closeNomiSheet();renderList();renderSearch();showToast('保存しました');
+  persist();updateLocalTimestamp();closeNomiSheet();renderList();renderSearch();showToast('保存しました');
 }
-function deleteNomi(sakeId,vid,nid){const sake=db.find(x=>x.id===sakeId);const v=sake.vintages.find(x=>x.id===vid);v.nomikans=v.nomikans.filter(x=>x.id!==nid);persist();renderList();renderSearch();}
+function deleteNomi(sakeId,vid,nid){const sake=db.find(x=>x.id===sakeId);const v=sake.vintages.find(x=>x.id===vid);v.nomikans=v.nomikans.filter(x=>x.id!==nid);persist();updateLocalTimestamp();renderList();renderSearch();}
 
 // ── 展開 ──
 function toggleEl(id,chevId){const d=document.getElementById(id);const c=document.getElementById(chevId);if(!d)return;const open=d.style.display==='block';d.style.display=open?'none':'block';if(c)c.classList.toggle('open',!open);}
