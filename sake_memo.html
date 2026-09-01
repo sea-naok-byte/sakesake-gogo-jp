@@ -210,11 +210,13 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <header class="app-header">
   <h1>🍶 日本酒メモ <span id="sake-count"></span></h1>
   <div class="header-right">
+    <div id="auth-status" style="font-size:11px;color:var(--text3);display:none"></div>
     <button class="sync-btn" id="sync-btn" onclick="syncNow()">
       <div class="sync-dot" id="sync-dot"></div>
       <i class="fa fa-cloud"></i>
       <span id="sync-label">同期</span>
     </button>
+    <button class="icon-btn" id="login-btn" onclick="openLoginSheet()" aria-label="ログイン" style="color:var(--accent)"><i class="fa fa-user"></i></button>
     <button class="icon-btn" onclick="openSettings()" aria-label="設定" style="color:var(--text2)"><i class="fa fa-gear"></i></button>
   </div>
 </header>
@@ -378,6 +380,27 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   </div>
 </div>
 
+<!-- ログインシート -->
+<div class="sheet-bg" id="login-bg"></div>
+<div class="sheet" id="login-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <div><div class="sheet-title">ログイン</div></div>
+  </div>
+  <div class="sheet-body">
+    <div style="text-align:center;padding:8px 0 16px;color:var(--text2);font-size:13px;line-height:1.7">
+      日本酒メモへようこそ🍶<br>
+      登録したメールアドレスとパスワードでログインしてください
+    </div>
+    <div class="sfield"><label>メールアドレス</label><input id="login-email" type="email" placeholder="example@gmail.com" inputmode="email"></div>
+    <div class="sfield"><label>パスワード</label><input id="login-password" type="password" placeholder="パスワード"></div>
+    <div id="login-error" style="display:none;font-size:12px;color:var(--red);padding:8px 10px;background:#FDECEA;border-radius:var(--radius-sm);margin-bottom:8px"></div>
+  </div>
+  <div class="sheet-footer">
+    <button class="sh-btn sh-save" onclick="doLogin()">ログイン</button>
+  </div>
+</div>
+
 <!-- Firebase設定シート -->
 <div class="sheet-bg" id="settings-bg" onclick="closeSettings()"></div>
 <div class="sheet" id="settings-sheet">
@@ -442,7 +465,8 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,doc,setDoc,getDoc}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getDatabase,ref,set,get}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-window._fbReady=false;window._db=null;window._rtdb=null;
+import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+window._fbReady=false;window._db=null;window._rtdb=null;window._auth=null;window._currentUser=null;
 window._fbInit=async function(){
   const cfg=JSON.parse(localStorage.getItem('sake_fb_config')||'null');
   if(!cfg||!cfg.apiKey||!cfg.projectId)return false;
@@ -460,7 +484,21 @@ window._fbInit=async function(){
       window._rtdb=getDatabase(app);
       window._rtdbRef=ref;window._rtdbSet=set;window._rtdbGet=get;
     }
-    window._fbReady=true;
+    window._auth=getAuth(app);
+    window._signInWithEmail=signInWithEmailAndPassword;
+    window._signOut=signOut;
+    // 認証状態の変化を監視
+    onAuthStateChanged(window._auth,user=>{
+      window._currentUser=user;
+      if(user){
+        window._fbReady=true;
+        updateAuthUI(user);
+        syncFromCloud();
+      }else{
+        window._fbReady=false;
+        updateAuthUI(null);
+      }
+    });
     return true;
   }catch(e){console.error('Firebase init error',e);return false;}
 };
@@ -646,10 +684,69 @@ async function syncFromCloud(){
 }
 
 async function syncNow(){
+  if(!window._currentUser){showToast('👤 先にログインしてください');openLoginSheet();return;}
   if(!window._fbReady){showToast('⚙️ 設定からFirebaseを設定してください');openSettings();return;}
   showToast('同期中...');
   await syncFromCloud();
 }
+// ── 認証 ──
+function openLoginSheet(){
+  document.getElementById('login-error').style.display='none';
+  document.getElementById('login-email').value='';
+  document.getElementById('login-password').value='';
+  openSheet('login-bg','login-sheet');
+}
+function closeLoginSheet(){closeSheet('login-bg','login-sheet');}
+
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pw=document.getElementById('login-password').value;
+  const errEl=document.getElementById('login-error');
+  if(!email||!pw){errEl.style.display='block';errEl.textContent='メールアドレスとパスワードを入力してください';return;}
+  try{
+    errEl.style.display='none';
+    await window._signInWithEmail(window._auth,email,pw);
+    closeLoginSheet();
+    showToast('ログインしました');
+  }catch(e){
+    errEl.style.display='block';
+    if(e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'||e.code==='auth/user-not-found'){
+      errEl.textContent='メールアドレスまたはパスワードが間違っています';
+    }else if(e.code==='auth/too-many-requests'){
+      errEl.textContent='ログイン試行回数が多すぎます。しばらく待ってください';
+    }else{
+      errEl.textContent='ログインに失敗しました：'+e.message;
+    }
+  }
+}
+
+async function doLogout(){
+  if(!confirm('ログアウトしますか？'))return;
+  await window._signOut(window._auth);
+  window._fbReady=false;
+  setSyncStatus('');
+  showToast('ログアウトしました');
+}
+
+function updateAuthUI(user){
+  const authStatus=document.getElementById('auth-status');
+  const loginBtn=document.getElementById('login-btn');
+  if(user){
+    authStatus.style.display='block';
+    authStatus.textContent=user.email;
+    loginBtn.innerHTML='<i class="fa fa-sign-out-alt"></i>';
+    loginBtn.setAttribute('aria-label','ログアウト');
+    loginBtn.onclick=doLogout;
+    setSyncStatus('ok');
+  }else{
+    authStatus.style.display='none';
+    loginBtn.innerHTML='<i class="fa fa-user"></i>';
+    loginBtn.setAttribute('aria-label','ログイン');
+    loginBtn.onclick=openLoginSheet;
+    setSyncStatus('');
+  }
+}
+
 function setSyncStatus(s){
   const dot=document.getElementById('sync-dot');
   const btn=document.getElementById('sync-btn');
@@ -977,8 +1074,13 @@ function renderSearch(){const list=filterAndSort([...db]);document.getElementByI
 
 window.addEventListener('load',async()=>{
   renderList();updateCount();
-  if(window._fbReady){setSyncStatus('ok');await syncFromCloud();}
-  else setSyncStatus('');
+  // Firebase設定があれば初期化（認証状態はonAuthStateChangedで監視）
+  const cfg=JSON.parse(localStorage.getItem('sake_fb_config')||'null');
+  if(cfg&&cfg.apiKey){
+    await window._fbInit();
+  }else{
+    setSyncStatus('');
+  }
 });
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
