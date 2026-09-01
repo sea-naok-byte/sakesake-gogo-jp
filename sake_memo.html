@@ -138,10 +138,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .sheet-title{font-family:'Noto Serif JP',serif;font-size:17px;font-weight:700;color:var(--accent)}
 .sheet-subtitle{font-size:12px;color:var(--text2);margin-top:2px}
 .close-btn{width:30px;height:30px;border-radius:50%;background:var(--bg2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:14px}
-.sheet-body{padding:14px 16px 0}
-.sfield{margin-bottom:13px}
+.sheet-body{padding:10px 14px 0}
+.sfield{margin-bottom:10px}
 .sfield label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:700}
-.sfield input,.sfield textarea,.sfield select{width:100%;font-size:16px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;-webkit-appearance:none}
+.sfield input,.sfield textarea,.sfield select{width:100%;font-size:16px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;-webkit-appearance:none}
 .sfield input:focus,.sfield textarea:focus,.sfield select:focus{outline:none;border-color:var(--accent-mid);background:var(--surface)}
 .sfield textarea{resize:none;height:72px;line-height:1.5}
 .sfield-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -157,10 +157,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .photo-thumb-sm{width:100%;height:110px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:4px;display:block}
 
 /* 星評価 */
-.star-row{display:flex;gap:8px;margin-top:6px}
-.star-btn{font-size:30px;cursor:pointer;color:var(--border2);background:none;border:none;line-height:1;padding:2px}
+.star-row{display:flex;gap:4px;margin-top:4px}
+.star-btn{font-size:26px;cursor:pointer;color:var(--border2);background:none;border:none;line-height:1;padding:1px}
 .star-btn.on{color:var(--gold)}
-.taste-sl{margin-bottom:13px}
+.taste-sl{margin-bottom:6px}
 .taste-sl-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
 .taste-sl-top label{font-size:13px;color:var(--text2);font-weight:500}
 .taste-sl-top span{font-size:13px;font-weight:700;color:var(--accent);min-width:28px;text-align:right}
@@ -342,9 +342,24 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   </div>
   <div class="sheet-body">
     <div class="sfield-row">
-      <div class="sfield"><label>飲んだ日</label><input id="t-date" type="date"></div>
+      <div class="sfield"><label>飲んだ日</label><input id="t-date" type="date" onchange="calcFurikiri()"></div>
       <div class="sfield"><label>場所</label><input id="t-place" type="text" placeholder="例：居酒屋"></div>
     </div>
+    <div class="sfield-row">
+      <div class="sfield">
+        <label>封切日</label>
+        <select id="t-furikiri-type" onchange="calcFurikiri()">
+          <option value="date">日付を入力</option>
+          <option value="unknown">不明</option>
+          <option value="same">飲んだ日と同じ（封切）</option>
+        </select>
+      </div>
+      <div class="sfield" id="t-furikiri-date-wrap">
+        <label>封切日</label>
+        <input id="t-furikiri-date" type="date" onchange="calcFurikiri()">
+      </div>
+    </div>
+    <div id="t-furikiri-result" style="font-size:12px;color:var(--accent);font-weight:700;margin-bottom:10px;padding:6px 10px;background:var(--accent-light);border-radius:var(--radius-sm);display:none"></div>
     <div class="sfield"><label>総合評価</label>
       <div class="star-row" id="t-stars">
         <button class="star-btn" data-v="1" onclick="setRating(1)">★</button>
@@ -355,7 +370,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
       </div>
     </div>
     <div class="sfield"><label>味の評価（各5段階）</label><div id="taste-sliders" style="margin-top:8px"></div></div>
-    <div class="sfield"><label>メモ・感想</label><textarea id="t-note" placeholder="合わせた料理、印象など..."></textarea></div>
+    <div class="sfield"><label>メモ・感想</label><textarea id="t-note" placeholder="合わせた料理、印象など..." style="height:56px"></textarea></div>
   </div>
   <div class="sheet-footer">
     <button class="sh-btn sh-cancel" onclick="closeNomiSheet()">やめる</button>
@@ -709,12 +724,47 @@ const tc=document.getElementById('type-chips');
   tc.appendChild(b);
 });
 
+function calcFurikiri(){
+  const type=document.getElementById('t-furikiri-type').value;
+  const dateWrap=document.getElementById('t-furikiri-date-wrap');
+  const result=document.getElementById('t-furikiri-result');
+  if(type==='unknown'){
+    dateWrap.style.display='none';result.style.display='none';
+    return;
+  }
+  if(type==='same'){
+    dateWrap.style.display='none';
+    const d=document.getElementById('t-date').value;
+    if(d){result.style.display='block';result.textContent='🍶 封切（開栓1日目）';}
+    else{result.style.display='none';}
+    return;
+  }
+  // date mode
+  dateWrap.style.display='block';
+  const fd=document.getElementById('t-furikiri-date').value;
+  const dd=document.getElementById('t-date').value;
+  if(fd&&dd){
+    const diff=Math.round((new Date(dd)-new Date(fd))/(1000*60*60*24));
+    if(diff<0){result.style.display='block';result.textContent='⚠️ 封切日が飲んだ日より後になっています';}
+    else if(diff===0){result.style.display='block';result.textContent='🍶 封切（開栓1日目）';}
+    else{result.style.display='block';result.textContent='🍶 封切から'+diff+'日目';}
+  }else{result.style.display='none';}
+}
 function setRating(v){tRating=v;updStars();}
 function updStars(){document.querySelectorAll('.star-btn').forEach(s=>s.classList.toggle('on',+s.dataset.v<=tRating));}
 function buildTasteSliders(){
-  document.getElementById('taste-sliders').innerHTML=TASTE_KEYS.map(k=>`
-    <div class="taste-sl"><div class="taste-sl-top"><label>${k}</label><span id="tv-${k}">★${tasteVals[k]||3}</span></div>
-    <input type="range" min="1" max="5" value="${tasteVals[k]||3}" step="1" oninput="tasteVals['${k}']=+this.value;document.getElementById('tv-${k}').textContent='★'+this.value"></div>`).join('');
+  document.getElementById('taste-sliders').innerHTML=
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 14px">'+
+    TASTE_KEYS.map(k=>`
+      <div class="taste-sl" style="margin-bottom:0">
+        <div class="taste-sl-top" style="margin-bottom:3px">
+          <label style="font-size:12px">${k}</label>
+          <span id="tv-${k}" style="font-size:12px">★${tasteVals[k]||3}</span>
+        </div>
+        <input type="range" min="1" max="5" value="${tasteVals[k]||3}" step="1"
+          oninput="tasteVals['${k}']=+this.value;document.getElementById('tv-${k}').textContent='★'+this.value">
+      </div>`).join('')+
+    '</div>';
 }
 
 function showPage(p){
@@ -802,14 +852,41 @@ function openNomiSheet(sakeId,vintageId,nomiId){
   const ym=v.month?v.year+'年'+v.month+'月':v.year+'年';
   document.getElementById('nomi-sheet-title').textContent='飲み感';
   document.getElementById('nomi-sheet-sub').textContent=sake.name+' · '+ym;
-  if(nomiId){const t=v.nomikans.find(x=>x.id===nomiId);document.getElementById('t-date').value=t.date||'';document.getElementById('t-place').value=t.place||'';document.getElementById('t-note').value=t.note||'';tRating=t.rating||0;TASTE_KEYS.forEach(k=>{tasteVals[k]=t.tastes?.[k]||3;});}
-  else{document.getElementById('t-date').value=new Date().toISOString().slice(0,10);document.getElementById('t-place').value='';document.getElementById('t-note').value='';TASTE_KEYS.forEach(k=>{tasteVals[k]=3;});}
+  if(nomiId){
+    const t=v.nomikans.find(x=>x.id===nomiId);
+    document.getElementById('t-date').value=t.date||'';
+    document.getElementById('t-place').value=t.place||'';
+    document.getElementById('t-note').value=t.note||'';
+    tRating=t.rating||0;
+    TASTE_KEYS.forEach(k=>{tasteVals[k]=t.tastes?.[k]||3;});
+    const ftype=t.furikiriType||'date';
+    document.getElementById('t-furikiri-type').value=ftype;
+    document.getElementById('t-furikiri-date').value=t.furikiriDate||'';
+  }else{
+    document.getElementById('t-date').value=new Date().toISOString().slice(0,10);
+    document.getElementById('t-place').value='';
+    document.getElementById('t-note').value='';
+    TASTE_KEYS.forEach(k=>{tasteVals[k]=3;});
+    document.getElementById('t-furikiri-type').value='date';
+    document.getElementById('t-furikiri-date').value='';
+  }
+  calcFurikiri();
   updStars();buildTasteSliders();openSheet('nomi-bg','nomi-sheet');
 }
 function closeNomiSheet(){closeSheet('nomi-bg','nomi-sheet');}
 function saveNomi(){
   const sake=db.find(x=>x.id===curSakeId);if(!sake)return;const v=sake.vintages.find(x=>x.id===curVintageId);if(!v)return;
-  const t={id:editNomiId||'t'+Date.now(),date:document.getElementById('t-date').value,place:document.getElementById('t-place').value.trim(),rating:tRating,tastes:{...tasteVals},note:document.getElementById('t-note').value.trim()};
+  const furikiriType=document.getElementById('t-furikiri-type').value;
+  const furikiriDate=furikiriType==='date'?document.getElementById('t-furikiri-date').value:'';
+  const t={
+    id:editNomiId||'t'+Date.now(),
+    date:document.getElementById('t-date').value,
+    place:document.getElementById('t-place').value.trim(),
+    rating:tRating,tastes:{...tasteVals},
+    note:document.getElementById('t-note').value.trim(),
+    furikiriType,
+    furikiriDate
+  };
   if(editNomiId){const i=v.nomikans.findIndex(x=>x.id===editNomiId);v.nomikans[i]=t;}else v.nomikans.unshift(t);
   persist();updateLocalTimestamp();closeNomiSheet();renderList();renderSearch();showToast('保存しました');
 }
@@ -832,18 +909,41 @@ function bestRating(sake){let best=0;sake.vintages.forEach(v=>(v.nomikans||[]).f
 function totalNomikans(sake){return sake.vintages.reduce((s,v)=>s+(v.nomikans||[]).length,0);}
 
 function nomiHTML(sakeId,vid,t){
-  return `<div class="nomi-block"><div class="nomi-toprow"><div class="nomi-meta"><strong>${t.date||'日付なし'}</strong>${t.place?' · '+t.place:''}<br>${t.rating?'総合 '+starsStr(t.rating):'評価なし'}</div><div class="nomi-actions"><button class="icon-btn" onclick="openNomiSheet('${sakeId}','${vid}','${t.id}')" aria-label="編集"><i class="fa fa-edit"></i></button><button class="icon-btn danger" onclick="deleteNomi('${sakeId}','${vid}','${t.id}')" aria-label="削除"><i class="fa fa-trash"></i></button></div></div><div class="taste-grid">${TASTE_KEYS.map(k=>`<div class="taste-cell"><div class="taste-cell-label">${k}</div><div class="dots">${dots(t.tastes?.[k]||0)}</div></div>`).join('')}</div>${t.note?`<div class="nomi-note-text">${t.note}</div>`:''}</div>`;
+  return `<div class="nomi-block"><div class="nomi-toprow"><div class="nomi-meta"><strong>${t.date||'日付なし'}</strong>${t.place?' · '+t.place:''}<br>${t.rating?'総合 '+starsStr(t.rating):'評価なし'}${(()=>{
+  if(!t.furikiriType||t.furikiriType==='unknown')return '';
+  if(t.furikiriType==='same')return ' · 🍶封切';
+  if(t.furikiriType==='date'&&t.furikiriDate&&t.date){
+    const diff=Math.round((new Date(t.date)-new Date(t.furikiriDate))/(1000*60*60*24));
+    return diff===0?' · 🍶封切':' · 🍶封切'+diff+'日目';
+  }
+  return '';
+})()}</div><div class="nomi-actions"><button class="icon-btn" onclick="openNomiSheet('${sakeId}','${vid}','${t.id}')" aria-label="編集"><i class="fa fa-edit"></i></button><button class="icon-btn danger" onclick="deleteNomi('${sakeId}','${vid}','${t.id}')" aria-label="削除"><i class="fa fa-trash"></i></button></div></div><div class="taste-grid">${TASTE_KEYS.map(k=>`<div class="taste-cell"><div class="taste-cell-label">${k}</div><div class="dots">${dots(t.tastes?.[k]||0)}</div></div>`).join('')}</div>${t.note?`<div class="nomi-note-text">${t.note}</div>`:''}</div>`;
 }
 function vintageHTML(sakeId,v){
   const bestV=(v.nomikans||[]).length?Math.max(...(v.nomikans||[]).map(t=>t.rating||0)):0;
   const ym=v.month?v.year+'年'+v.month+'月':v.year+'年';
   const vDetId='vdet-'+v.id;const vChevId='vchev-'+v.id;const hasPhotos=v.frontImg||v.backImg;
-  return `<div class="vintage-block"><div class="vintage-header" onclick="toggleEl('${vDetId}','${vChevId}')"><div class="vintage-ym-badge">${ym}</div><div class="vintage-summary">${bestV?`<div class="vintage-best">${starsStr(bestV)}</div>`:''}<div class="vintage-count">${(v.nomikans||[]).length?'飲み感 '+(v.nomikans||[]).length+'回':'まだ記録なし'}</div></div><i class="fa fa-chevron-right vintage-chevron" id="${vChevId}"></i></div><div class="vintage-detail" id="${vDetId}" style="display:none">${hasPhotos?`<div class="label-photos"><div class="label-photo-wrap">${v.frontImg?`<img src="${v.frontImg}" class="photo-thumb-sm" alt="表ラベル" onclick="openImgModal(this.src)" style="cursor:zoom-in"><div class="label-photo-cap">表ラベル</div>`:'<div class="label-photo-empty">写真なし</div>'}</div><div class="label-photo-wrap">${v.backImg?`<img src="${v.backImg}" class="photo-thumb-sm" alt="裏ラベル" onclick="openImgModal(this.src)" style="cursor:zoom-in"><div class="label-photo-cap">裏ラベル</div>`:'<div class="label-photo-empty">写真なし</div>'}</div></div>`:''} ${v.note?`<div class="info-box" style="margin-bottom:10px">${v.note}</div>`:''}<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div style="font-size:10px;font-weight:700;color:var(--text3)">飲み感の記録</div><div style="display:flex;gap:2px"><button class="icon-btn" onclick="openVintageSheet('${sakeId}','${v.id}')" aria-label="製造年月を編集" style="font-size:13px"><i class="fa fa-edit"></i></button><button class="icon-btn danger" onclick="deleteVintage('${sakeId}','${v.id}')" aria-label="製造年月を削除" style="font-size:13px"><i class="fa fa-trash"></i></button></div></div>${(v.nomikans||[]).map(t=>nomiHTML(sakeId,v.id,t)).join('')}<button class="add-btn" onclick="openNomiSheet('${sakeId}','${v.id}')"><i class="fa fa-plus"></i> 飲み感を追加</button></div></div>`;
+  return `<div class="vintage-block"><div class="vintage-header" onclick="toggleEl('${vDetId}','${vChevId}')"><div class="vintage-ym-badge">${ym}</div><div class="vintage-summary">${bestV?`<div class="vintage-best">${starsStr(bestV)}</div>`:''}<div class="vintage-count">${(v.nomikans||[]).length?'飲み感 '+(v.nomikans||[]).length+'回':'まだ記録なし'}</div></div><div style="display:flex;gap:0;flex-shrink:0" onclick="event.stopPropagation()"><button class="icon-btn" onclick="openVintageSheet('${sakeId}','${v.id}')" aria-label="製造年月を編集" style="font-size:14px"><i class="fa fa-edit"></i></button><button class="icon-btn danger" onclick="deleteVintage('${sakeId}','${v.id}')" aria-label="製造年月を削除" style="font-size:14px"><i class="fa fa-trash"></i></button></div><i class="fa fa-chevron-right vintage-chevron" id="${vChevId}"></i></div><div class="vintage-detail" id="${vDetId}" style="display:none">${hasPhotos?`<div class="label-photos"><div class="label-photo-wrap">${v.frontImg?`<img src="${v.frontImg}" class="photo-thumb-sm" alt="表ラベル" onclick="openImgModal(this.src)" style="cursor:zoom-in"><div class="label-photo-cap">表ラベル</div>`:'<div class="label-photo-empty">写真なし</div>'}</div><div class="label-photo-wrap">${v.backImg?`<img src="${v.backImg}" class="photo-thumb-sm" alt="裏ラベル" onclick="openImgModal(this.src)" style="cursor:zoom-in"><div class="label-photo-cap">裏ラベル</div>`:'<div class="label-photo-empty">写真なし</div>'}</div></div>`:''} ${v.note?`<div class="info-box" style="margin-bottom:10px">${v.note}</div>`:''}<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div style="font-size:10px;font-weight:700;color:var(--text3)">飲み感の記録</div><div style="display:flex;gap:2px"><button class="icon-btn" onclick="openNomiSheet('${sakeId}','${v.id}')" aria-label="飲み感を追加" style="font-size:13px;color:var(--accent)"><i class="fa fa-plus"></i></button></div></div>${(v.nomikans||[]).map(t=>nomiHTML(sakeId,v.id,t)).join('')}</div></div>`;
 }
 function cardHTML(r){
   const best=bestRating(r);const total=totalNomikans(r);
   const detId='det-'+r.id;const chevId='chev-'+r.id;const thumb=latestFrontImg(r);
-  return `<div class="sake-card"><div class="card-header" onclick="toggleEl('${detId}','${chevId}')"><div class="card-label-img">${thumb?`<img src="${thumb}" alt="ラベル" onclick="event.stopPropagation();openImgModal(this.src)" style="cursor:zoom-in">`:'🍶'}</div><div class="card-body"><div class="card-name">${r.name}</div><div class="card-sub">${[r.kura,r.pref].filter(Boolean).join(' · ')}</div><div class="tag-row">${r.shu?`<span class="tag">${r.shu}</span>`:''}${r.seimi?`<span class="tag">${r.seimi}</span>`:''}${best?`<span class="tag tag-gold">${starsStr(best)}</span>`:''}${r.vintages.length?`<span class="tag tag-indigo">${r.vintages.length}年月 · ${total}回</span>`:''}</div></div><i class="fa fa-chevron-right card-chevron" id="${chevId}"></i></div><div class="card-detail" id="${detId}" style="display:none"><div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px">${(r.shu||r.seimi||r.extra)?`<div class="info-box" style="flex:1;margin-bottom:0">${[r.shu?'酒種：'+r.shu:'',r.seimi?'精米歩合：'+r.seimi:'',r.extra].filter(Boolean).join('<br>')}</div>`:'<div style="flex:1"></div>'}<div style="display:flex;gap:2px;flex-shrink:0"><button class="icon-btn" onclick="openSakeSheet('${r.id}')" aria-label="編集"><i class="fa fa-edit"></i></button><button class="icon-btn danger" onclick="deleteSake('${r.id}')" aria-label="削除"><i class="fa fa-trash"></i></button></div></div><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div class="section-label">製造年月ごとの記録</div><button class="add-btn add-vintage-btn" onclick="openVintageSheet('${r.id}')" style="width:auto;padding:4px 10px;margin-top:0;font-size:12px"><i class="fa fa-plus"></i> 追加</button></div>${r.vintages.map(v=>vintageHTML(r.id,v)).join('')}</div></div>`;
+  return `<div class="sake-card"><div class="card-header" onclick="toggleEl('${detId}','${chevId}')"><div class="card-label-img">${thumb?`<img src="${thumb}" alt="ラベル" onclick="event.stopPropagation();openImgModal(this.src)" style="cursor:zoom-in">`:'🍶'}</div><div class="card-body"><div class="card-name">${r.name}</div><div class="card-sub">${[r.kura,r.pref].filter(Boolean).join(' · ')}</div><div class="tag-row">${r.shu?`<span class="tag">${r.shu}</span>`:''}${r.seimi?`<span class="tag">${r.seimi}</span>`:''}${best?`<span class="tag tag-gold">${starsStr(best)}</span>`:''}${r.vintages.length?`<span class="tag tag-indigo">${r.vintages.length}年月 · ${total}回</span>`:''}</div></div><i class="fa fa-chevron-right card-chevron" id="${chevId}"></i></div><div class="card-detail" id="${detId}" style="display:none">
+  <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:10px">
+    <div style="flex:1">${(r.shu||r.seimi||r.extra)?`<div class="info-box" style="margin-bottom:0">${[r.shu?'酒種：'+r.shu:'',r.seimi?'精米歩合：'+r.seimi:'',r.extra].filter(Boolean).join('<br>')}</div>`:'<div style="height:4px"></div>'}</div>
+    <div style="display:flex;gap:0;flex-shrink:0">
+      <button class="icon-btn" onclick="openSakeSheet('${r.id}')" aria-label="銘柄を編集" style="font-size:15px"><i class="fa fa-edit"></i></button>
+      <button class="icon-btn danger" onclick="deleteSake('${r.id}')" aria-label="銘柄を削除" style="font-size:15px"><i class="fa fa-trash"></i></button>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <div class="section-label">製造年月ごとの記録</div>
+    <div style="display:flex;gap:0">
+      <button class="icon-btn" onclick="openVintageSheet('${r.id}')" aria-label="製造年月を追加" style="font-size:15px;color:var(--accent)"><i class="fa fa-plus"></i></button>
+    </div>
+  </div>
+  ${r.vintages.map(v=>vintageHTML(r.id,v)).join('')}
+</div></div>`;
 }
 function filterAndSort(list){
   const q=(document.getElementById('q').value||'').toLowerCase();const qextra=(document.getElementById('qextra').value||'').toLowerCase();const fpref=document.getElementById('fpref').value;const fsort=document.getElementById('fsort').value;
