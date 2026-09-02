@@ -25,13 +25,13 @@
   --red:#C0392B;
   --header-h:56px;--nav-h:60px;--radius:16px;--radius-sm:10px;
 }
-body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom))}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));line-height:1.4}
 
 /* ヘッダー */
-.app-header{position:sticky;top:0;z-index:50;height:var(--header-h);display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--border)}
-.app-header h1{font-family:'Noto Serif JP',serif;font-size:20px;font-weight:700;color:var(--accent)}
-.app-header h1 span{font-size:12px;font-weight:400;color:var(--text3);margin-left:6px;font-family:'Noto Sans JP',sans-serif}
-.header-right{display:flex;align-items:center;gap:6px}
+.app-header{position:sticky;top:0;z-index:50;height:auto;min-height:var(--header-h);display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:nowrap;gap:6px}
+.app-header h1{font-family:'Noto Serif JP',serif;font-size:18px;font-weight:700;color:var(--accent);white-space:nowrap;flex-shrink:0}
+.app-header h1 span{font-size:11px;font-weight:400;color:var(--text3);margin-left:4px;font-family:'Noto Sans JP',sans-serif}
+.header-right{display:flex;align-items:center;gap:2px;flex-shrink:0}
 .sync-btn{display:flex;align-items:center;gap:4px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text2);font-size:12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif}
 .sync-btn:active{background:var(--bg2)}
 .sync-btn.syncing i{animation:spin .7s linear infinite}
@@ -54,13 +54,13 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .page.active{display:block}
 
 /* 銘柄カード */
-.sake-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:10px;overflow:hidden}
-.card-header{display:flex;gap:12px;padding:13px;align-items:flex-start;cursor:pointer}
-.card-label-img{width:48px;height:64px;border-radius:var(--radius-sm);border:1px solid var(--border);flex-shrink:0;background:var(--bg2);display:flex;align-items:center;justify-content:center;color:var(--text3);overflow:hidden;font-size:20px}
+.sake-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:8px;overflow:hidden}
+.card-header{display:flex;gap:10px;padding:10px 12px;align-items:flex-start;cursor:pointer}
+.card-label-img{width:42px;height:56px;border-radius:var(--radius-sm);border:1px solid var(--border);flex-shrink:0;background:var(--bg2);display:flex;align-items:center;justify-content:center;color:var(--text3);overflow:hidden;font-size:18px}
 .card-label-img img{width:100%;height:100%;object-fit:cover}
 .card-body{flex:1;min-width:0}
-.card-name{font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px;font-family:'Noto Serif JP',serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card-sub{font-size:11px;color:var(--text2);margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:1px;font-family:'Noto Serif JP',serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-sub{font-size:11px;color:var(--text2);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tag-row{display:flex;flex-wrap:wrap;gap:4px}
 .tag{font-size:10px;padding:2px 8px;border-radius:100px;border:1px solid var(--border2);color:var(--text2);background:var(--bg)}
 .tag-gold{border-color:var(--gold);color:var(--gold);background:var(--gold-light)}
@@ -69,7 +69,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .card-chevron.open{transform:rotate(90deg)}
 
 /* 銘柄展開 */
-.card-detail{border-top:1px solid var(--border);padding:13px;background:var(--surface2)}
+.card-detail{border-top:1px solid var(--border);padding:10px;background:var(--surface2)}
 .info-box{font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6;background:var(--bg);border-radius:var(--radius-sm);padding:8px 10px;border:1px solid var(--border)}
 .det-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .section-label{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--text3)}
@@ -80,7 +80,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 
 /* 製造年月ブロック */
 .vintage-block{border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;background:var(--surface);overflow:hidden}
-.vintage-header{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;background:var(--bg)}
+.vintage-header{display:flex;align-items:center;gap:6px;padding:8px 10px;cursor:pointer;background:var(--bg)}
 .vintage-ym-badge{font-family:'Noto Serif JP',serif;font-size:15px;font-weight:700;color:var(--accent);flex-shrink:0;min-width:78px}
 .vintage-summary{flex:1;min-width:0}
 .vintage-best{font-size:11px;color:var(--gold)}
@@ -88,17 +88,17 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .vintage-chevron{color:var(--text3);font-size:12px;transition:transform .2s;flex-shrink:0}
 .vintage-chevron.open{transform:rotate(90deg)}
 .vintage-actions{display:flex;gap:2px;flex-shrink:0}
-.vintage-detail{padding:10px;border-top:1px solid var(--border);background:var(--surface2)}
+.vintage-detail{padding:8px;border-top:1px solid var(--border);background:var(--surface2)}
 
 /* ラベル写真 */
-.label-photos{display:flex;gap:8px;margin-bottom:10px}
-.label-photo-wrap{flex:1}
-.label-photo-wrap img{width:100%;height:110px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);display:block}
-.label-photo-cap{font-size:10px;color:var(--text3);text-align:center;margin-top:3px}
-.label-photo-empty{width:100%;height:110px;border-radius:var(--radius-sm);border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:11px;background:var(--bg)}
+.label-photos{display:flex;gap:6px;margin-bottom:8px;align-items:flex-start}
+.label-photo-wrap{width:calc(50% - 3px)}
+.label-photo-wrap img{width:100%;height:38px;object-fit:cover;border-radius:6px;border:1px solid var(--border);display:block;cursor:zoom-in}
+.label-photo-cap{font-size:9px;color:var(--text3);text-align:center;margin-top:2px}
+.label-photo-empty{width:100%;height:38px;border-radius:6px;border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:9px;background:var(--bg)}
 
 /* 飲み感ブロック */
-.nomi-block{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px}
+.nomi-block{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px}
 .nomi-toprow{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:6px}
 .nomi-meta{font-size:11px;color:var(--text2);line-height:1.5}
 .nomi-meta strong{color:var(--text);font-weight:700}
@@ -154,7 +154,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .photo-trigger-btn.sec{background:var(--bg2);color:var(--text2);border:1px solid var(--border2)}
 .photo-trigger-btn.sec:active{background:var(--bg3)}
 .photo-thumb{width:100%;max-height:140px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:6px}
-.photo-thumb-sm{width:100%;height:110px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:4px;display:block}
+.photo-thumb-sm{width:100%;height:38px;object-fit:cover;border-radius:6px;border:1px solid var(--border);margin-bottom:2px;display:block;cursor:zoom-in}
 
 /* 星評価 */
 .star-row{display:flex;gap:4px;margin-top:4px}
@@ -210,7 +210,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <header class="app-header">
   <h1>🍶 日本酒メモ <span id="sake-count"></span></h1>
   <div class="header-right">
-    <div id="auth-status" style="font-size:11px;color:var(--text3);display:none"></div>
+    <div id="auth-status" style="font-size:10px;color:var(--text3);display:none;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
     <button class="sync-btn" id="sync-btn" onclick="syncNow()">
       <div class="sync-dot" id="sync-dot"></div>
       <i class="fa fa-cloud"></i>
@@ -990,7 +990,28 @@ function saveNomi(){
 function deleteNomi(sakeId,vid,nid){const sake=db.find(x=>x.id===sakeId);const v=sake.vintages.find(x=>x.id===vid);v.nomikans=v.nomikans.filter(x=>x.id!==nid);persist();updateLocalTimestamp();renderList();renderSearch();}
 
 // ── 展開 ──
-function toggleEl(id,chevId){const d=document.getElementById(id);const c=document.getElementById(chevId);if(!d)return;const open=d.style.display==='block';d.style.display=open?'none':'block';if(c)c.classList.toggle('open',!open);}
+function toggleEl(id,chevId){
+  const d=document.getElementById(id);
+  const c=document.getElementById(chevId);
+  if(!d)return;
+  const open=d.style.display==='block';
+  d.style.display=open?'none':'block';
+  if(c)c.classList.toggle('open',!open);
+  // 銘柄カードを展開したとき、すべての製造年月と飲み感も展開する
+  if(!open&&id.startsWith('det-')){
+    // 少し遅らせてDOMが確定してから展開
+    setTimeout(()=>{
+      d.querySelectorAll('[id^="vdet-"]').forEach(vd=>{
+        if(vd.style.display!=='block'){
+          vd.style.display='block';
+          const vid=vd.id.replace('vdet-','');
+          const vc=document.getElementById('vchev-'+vid);
+          if(vc)vc.classList.add('open');
+        }
+      });
+    },50);
+  }
+}
 
 // ── 最新表ラベル ──
 function latestFrontImg(sake){
