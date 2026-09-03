@@ -28,16 +28,16 @@
 body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));line-height:1.4}
 
 /* ヘッダー */
-.app-header{position:sticky;top:0;z-index:50;height:auto;min-height:var(--header-h);display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:nowrap;gap:6px}
-.app-header h1{font-family:'Noto Serif JP',serif;font-size:18px;font-weight:700;color:var(--accent);white-space:nowrap;flex-shrink:0}
+.app-header{position:sticky;top:0;z-index:50;height:var(--header-h);display:flex;align-items:center;justify-content:space-between;padding:0 10px;background:var(--surface);border-bottom:1px solid var(--border);overflow:hidden;max-width:100vw}
+.app-header h1{font-family:'Noto Serif JP',serif;font-size:17px;font-weight:700;color:var(--accent);white-space:nowrap;flex-shrink:0;min-width:0}
 .app-header h1 span{font-size:11px;font-weight:400;color:var(--text3);margin-left:4px;font-family:'Noto Sans JP',sans-serif}
-.header-right{display:flex;align-items:center;gap:2px;flex-shrink:0}
+.header-right{display:flex;align-items:center;gap:0;flex-shrink:0;min-width:0}
 .sync-btn{display:flex;align-items:center;gap:4px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text2);font-size:12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif}
 .sync-btn:active{background:var(--bg2)}
 .sync-btn.syncing i{animation:spin .7s linear infinite}
-.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);flex-shrink:0}
-.sync-dot.ok{background:var(--green)}
-.sync-dot.err{background:var(--red)}
+.sync-dot{display:none}
+.sync-dot.ok{}
+.sync-dot.err{}
 
 /* 下ナビ */
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;height:var(--nav-h);background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-around;z-index:50;padding-bottom:env(safe-area-inset-bottom)}
@@ -50,18 +50,18 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .fab:active{transform:scale(.93)}
 
 /* ページ */
-.page{display:none;padding:12px 12px 0}
+.page{display:none;padding:4px 8px 0}
 .page.active{display:block}
 
 /* 銘柄カード */
-.sake-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:8px;overflow:hidden}
-.card-header{display:flex;gap:10px;padding:10px 12px;align-items:flex-start;cursor:pointer}
+.sake-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:4px;overflow:hidden}
+.card-header{display:flex;gap:8px;padding:6px 10px;align-items:flex-start;cursor:pointer}
 .card-label-img{width:42px;height:56px;border-radius:var(--radius-sm);border:1px solid var(--border);flex-shrink:0;background:var(--bg2);display:flex;align-items:center;justify-content:center;color:var(--text3);overflow:hidden;font-size:18px}
 .card-label-img img{width:100%;height:100%;object-fit:cover}
 .card-body{flex:1;min-width:0}
 .card-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:1px;font-family:'Noto Serif JP',serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card-sub{font-size:11px;color:var(--text2);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tag-row{display:flex;flex-wrap:wrap;gap:4px}
+.card-sub{font-size:11px;color:var(--text2);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag-row{display:flex;flex-wrap:wrap;gap:2px}
 .tag{font-size:10px;padding:2px 8px;border-radius:100px;border:1px solid var(--border2);color:var(--text2);background:var(--bg)}
 .tag-gold{border-color:var(--gold);color:var(--gold);background:var(--gold-light)}
 .tag-indigo{border-color:var(--indigo);color:var(--indigo);background:var(--indigo-light)}
@@ -69,8 +69,8 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .card-chevron.open{transform:rotate(90deg)}
 
 /* 銘柄展開 */
-.card-detail{border-top:1px solid var(--border);padding:10px;background:var(--surface2)}
-.info-box{font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6;background:var(--bg);border-radius:var(--radius-sm);padding:8px 10px;border:1px solid var(--border)}
+.card-detail{border-top:1px solid var(--border);padding:6px 8px;background:var(--surface2)}
+.info-box{font-size:12px;color:var(--text2);margin-bottom:6px;line-height:1.4;background:var(--bg);border-radius:var(--radius-sm);padding:4px 8px;border:1px solid var(--border)}
 .det-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .section-label{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--text3)}
 .det-actions{display:flex;gap:4px}
@@ -79,8 +79,8 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .icon-btn.danger:active{background:#FDECEA;color:var(--red)}
 
 /* 製造年月ブロック */
-.vintage-block{border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;background:var(--surface);overflow:hidden}
-.vintage-header{display:flex;align-items:center;gap:6px;padding:8px 10px;cursor:pointer;background:var(--bg)}
+.vintage-block{border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:4px;background:var(--surface);overflow:hidden}
+.vintage-header{display:flex;align-items:center;gap:4px;padding:5px 8px;cursor:pointer;background:var(--bg)}
 .vintage-ym-badge{font-family:'Noto Serif JP',serif;font-size:15px;font-weight:700;color:var(--accent);flex-shrink:0;min-width:78px}
 .vintage-summary{flex:1;min-width:0}
 .vintage-best{font-size:11px;color:var(--gold)}
@@ -88,22 +88,22 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .vintage-chevron{color:var(--text3);font-size:12px;transition:transform .2s;flex-shrink:0}
 .vintage-chevron.open{transform:rotate(90deg)}
 .vintage-actions{display:flex;gap:2px;flex-shrink:0}
-.vintage-detail{padding:8px;border-top:1px solid var(--border);background:var(--surface2)}
+.vintage-detail{padding:5px 6px;border-top:1px solid var(--border);background:var(--surface2)}
 
 /* ラベル写真 */
-.label-photos{display:flex;gap:6px;margin-bottom:8px;align-items:flex-start}
+.label-photos{display:flex;gap:4px;margin-bottom:4px;align-items:flex-start}
 .label-photo-wrap{width:calc(50% - 3px)}
 .label-photo-wrap img{width:100%;height:38px;object-fit:cover;border-radius:6px;border:1px solid var(--border);display:block;cursor:zoom-in}
 .label-photo-cap{font-size:9px;color:var(--text3);text-align:center;margin-top:2px}
 .label-photo-empty{width:100%;height:38px;border-radius:6px;border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:9px;background:var(--bg)}
 
 /* 飲み感ブロック */
-.nomi-block{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px}
-.nomi-toprow{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:6px}
+.nomi-block{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:5px 7px;margin-bottom:4px}
+.nomi-toprow{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;gap:4px}
 .nomi-meta{font-size:11px;color:var(--text2);line-height:1.5}
 .nomi-meta strong{color:var(--text);font-weight:700}
 .nomi-actions{display:flex;gap:2px;flex-shrink:0}
-.taste-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px}
+.taste-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-bottom:3px}
 .taste-cell{text-align:center}
 .taste-cell-label{font-size:9px;color:var(--text3);margin-bottom:3px;line-height:1.2}
 .dots{display:flex;justify-content:center;gap:2px}
@@ -112,7 +112,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .nomi-note-text{font-size:12px;color:var(--text2);margin-top:6px;line-height:1.5;border-top:1px solid var(--border);padding-top:6px}
 
 /* ＋ボタン */
-.add-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border:1.5px dashed var(--border2);border-radius:8px;background:none;color:var(--text2);font-size:13px;cursor:pointer;width:100%;margin-top:4px;font-family:'Noto Sans JP',sans-serif}
+.add-btn{display:flex;align-items:center;justify-content:center;gap:4px;padding:5px;border:1.5px dashed var(--border2);border-radius:6px;background:none;color:var(--text2);font-size:12px;cursor:pointer;width:100%;margin-top:3px;font-family:'Noto Sans JP',sans-serif}
 .add-btn:active{background:var(--bg2)}
 .add-vintage-btn{margin-top:8px;border-color:var(--accent-mid);color:var(--accent)}
 
@@ -210,7 +210,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <header class="app-header">
   <h1>🍶 日本酒メモ <span id="sake-count"></span></h1>
   <div class="header-right">
-    <div id="auth-status" style="font-size:10px;color:var(--text3);display:none;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+    <div id="auth-status" style="font-size:10px;color:var(--text3);display:none;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
     <button class="sync-btn" id="sync-btn" onclick="syncNow()">
       <div class="sync-dot" id="sync-dot"></div>
       <i class="fa fa-cloud"></i>
