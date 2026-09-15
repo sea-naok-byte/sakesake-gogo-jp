@@ -223,6 +223,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 
 <main>
   <div class="page active" id="page-list"><div id="list-container"></div></div>
+  <div class="page" id="page-kura"><div id="kura-container"></div></div>
   <div class="page" id="page-search">
     <div class="search-box"><i class="fa fa-search"></i><input class="search-input" id="q" type="search" placeholder="銘柄・蔵元で検索..." oninput="renderSearch()"></div>
     <input class="search-input" id="qextra" type="search" placeholder="🌾 米の品種などで検索..." oninput="renderSearch()" style="margin-bottom:8px">
@@ -241,6 +242,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <nav class="bottom-nav">
   <button class="nav-item active" id="nav-list" onclick="showPage('list')"><i class="fa fa-list"></i>一覧</button>
   <button class="nav-item" id="nav-search" onclick="showPage('search')"><i class="fa fa-search"></i>検索</button>
+  <button class="nav-item" id="nav-kura" onclick="showPage('kura')"><i class="fa fa-house"></i>酒造</button>
 </nav>
 <button class="fab" onclick="openSakeSheet()" aria-label="新しい銘柄を追加"><i class="fa fa-plus"></i></button>
 
@@ -865,8 +867,13 @@ function buildTasteSliders(){
 }
 
 function showPage(p){
-  ['list','search'].forEach(n=>{document.getElementById('page-'+n).classList.toggle('active',n===p);document.getElementById('nav-'+n).classList.toggle('active',n===p);});
-  if(p==='list')renderList(); else renderSearch();
+  ['list','search','kura'].forEach(n=>{
+    document.getElementById('page-'+n).classList.toggle('active',n===p);
+    document.getElementById('nav-'+n).classList.toggle('active',n===p);
+  });
+  if(p==='list')renderList();
+  else if(p==='search')renderSearch();
+  else if(p==='kura')renderKura();
 }
 function openSheet(bgId,sheetId){document.getElementById(bgId).classList.add('open');requestAnimationFrame(()=>document.getElementById(sheetId).classList.add('open'));}
 function closeSheet(bgId,sheetId){document.getElementById(sheetId).classList.remove('open');setTimeout(()=>document.getElementById(bgId).classList.remove('open'),300);}
@@ -884,7 +891,7 @@ function saveSake(){
   const name=document.getElementById('f-name').value.trim();if(!name){document.getElementById('f-name').focus();return;}
   const rec={id:editSakeId||Date.now().toString(),name,kura:document.getElementById('f-kura').value.trim(),pref:document.getElementById('f-pref').value,shu:document.getElementById('f-shu').value,seimi:document.getElementById('f-seimi').value.trim(),extra:document.getElementById('f-extra').value.trim(),vintages:[],createdAt:Date.now()};
   if(editSakeId){const i=db.findIndex(x=>x.id===editSakeId);rec.vintages=db[i].vintages||[];db[i]=rec;}else db.unshift(rec);
-  persist();updateLocalTimestamp();closeSakeSheet();renderList();renderSearch();updateCount();showToast('保存しました');
+  persist();updateLocalTimestamp();closeSakeSheet();renderList();renderSearch();renderKura();updateCount();showToast('保存しました');
 }
 function deleteSake(id){if(!confirm('この銘柄をすべての製造年月ごと削除しますか？'))return;db=db.filter(x=>x.id!==id);persist();updateLocalTimestamp();renderList();renderSearch();updateCount();}
 
@@ -938,7 +945,7 @@ function saveVintage(){
   const v={id:editVintageId||'v'+Date.now(),year,month:document.getElementById('v-month').value,frontImg:vFrontImg,backImg:vBackImg,note:document.getElementById('v-note').value.trim(),nomikans:[]};
   if(editVintageId){const i=sake.vintages.findIndex(x=>x.id===editVintageId);v.nomikans=sake.vintages[i].nomikans||[];sake.vintages[i]=v;}
   else sake.vintages.unshift(v);
-  persist();updateLocalTimestamp();closeVintageSheet();renderList();renderSearch();showToast('保存しました');
+  persist();updateLocalTimestamp();closeVintageSheet();renderList();renderSearch();renderKura();showToast('保存しました');
 }
 function deleteVintage(sakeId,vid){if(!confirm('この製造年月の記録をすべて削除しますか？'))return;const sake=db.find(x=>x.id===sakeId);sake.vintages=sake.vintages.filter(x=>x.id!==vid);persist();updateLocalTimestamp();renderList();renderSearch();}
 
@@ -985,7 +992,7 @@ function saveNomi(){
     furikiriDate
   };
   if(editNomiId){const i=v.nomikans.findIndex(x=>x.id===editNomiId);v.nomikans[i]=t;}else v.nomikans.unshift(t);
-  persist();updateLocalTimestamp();closeNomiSheet();renderList();renderSearch();showToast('保存しました');
+  persist();updateLocalTimestamp();closeNomiSheet();renderList();renderSearch();renderKura();showToast('保存しました');
 }
 function deleteNomi(sakeId,vid,nid){const sake=db.find(x=>x.id===sakeId);const v=sake.vintages.find(x=>x.id===vid);v.nomikans=v.nomikans.filter(x=>x.id!==nid);persist();updateLocalTimestamp();renderList();renderSearch();}
 
@@ -1041,7 +1048,7 @@ function vintageHTML(sakeId,v){
   const bestV=(v.nomikans||[]).length?Math.max(...(v.nomikans||[]).map(t=>t.rating||0)):0;
   const ym=v.month?v.year+'年'+v.month+'月':v.year+'年';
   const vDetId='vdet-'+v.id;const vChevId='vchev-'+v.id;const hasPhotos=v.frontImg||v.backImg;
-  return `<div class="vintage-block"><div class="vintage-header" onclick="toggleEl('${vDetId}','${vChevId}')"><div class="vintage-ym-badge">${ym}</div><div class="vintage-summary">${bestV?`<div class="vintage-best">${starsStr(bestV)}</div>`:''}<div class="vintage-count">${(v.nomikans||[]).length?'飲み感 '+(v.nomikans||[]).length+'回':'まだ記録なし'}</div></div><div style="display:flex;gap:0;flex-shrink:0" onclick="event.stopPropagation()"><button class="icon-btn" onclick="openVintageSheet('${sakeId}','${v.id}')" aria-label="製造年月を編集" style="font-size:14px"><i class="fa fa-edit"></i></button><button class="icon-btn danger" onclick="deleteVintage('${sakeId}','${v.id}')" aria-label="製造年月を削除" style="font-size:14px"><i class="fa fa-trash"></i></button></div><i class="fa fa-chevron-right vintage-chevron" id="${vChevId}"></i></div><div class="vintage-detail" id="${vDetId}" style="display:none">${hasPhotos?`<div class="label-photos"><div class="label-photo-wrap">${v.frontImg?`<img src="${v.frontImg}" class="photo-thumb-sm" alt="表ラベル" onclick="openImgModal(this.src)" style="cursor:zoom-in"><div class="label-photo-cap">表ラベル</div>`:'<div class="label-photo-empty">写真なし</div>'}</div><div class="label-photo-wrap">${v.backImg?`<img src="${v.backImg}" class="photo-thumb-sm" alt="裏ラベル" onclick="openImgModal(this.src)" style="cursor:zoom-in"><div class="label-photo-cap">裏ラベル</div>`:'<div class="label-photo-empty">写真なし</div>'}</div></div>`:''} ${v.note?`<div class="info-box" style="margin-bottom:10px">${v.note}</div>`:''}<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div style="font-size:10px;font-weight:700;color:var(--text3)">飲み感の記録</div><div style="display:flex;gap:2px"><button class="icon-btn" onclick="openNomiSheet('${sakeId}','${v.id}')" aria-label="飲み感を追加" style="font-size:13px;color:var(--accent)"><i class="fa fa-plus"></i></button></div></div>${(v.nomikans||[]).map(t=>nomiHTML(sakeId,v.id,t)).join('')}</div></div>`;
+  return `<div class="vintage-block"><div class="vintage-header" onclick="toggleEl('${vDetId}','${vChevId}')"><div class="vintage-ym-badge">${ym}</div><div class="vintage-summary">${bestV?`<div class="vintage-best">${starsStr(bestV)}</div>`:''}<div class="vintage-count">${(v.nomikans||[]).length?'飲み感 '+(v.nomikans||[]).length+'回':'まだ記録なし'}</div></div><div style="display:flex;gap:0;flex-shrink:0" onclick="event.stopPropagation()"><button class="icon-btn" onclick="openVintageSheet('${sakeId}','${v.id}')" aria-label="製造年月を編集" style="font-size:14px"><i class="fa fa-edit"></i></button><button class="icon-btn danger" onclick="deleteVintage('${sakeId}','${v.id}')" aria-label="製造年月を削除" style="font-size:14px"><i class="fa fa-trash"></i></button></div><i class="fa fa-chevron-right vintage-chevron" id="${vChevId}"></i></div><div class="vintage-detail" id="${vDetId}" style="display:none">${hasPhotos?`<div class="label-photos"><div class="label-photo-wrap">${v.frontImg?`<img src="${v.frontImg}" class="photo-thumb-sm" alt="表ラベル" onclick="openImgModal(this.src)" style="cursor:zoom-in"><div class="label-photo-cap">表ラベル</div>`:'<div class="label-photo-empty">写真なし</div>'}</div><div class="label-photo-wrap">${v.backImg?`<img src="${v.backImg}" class="photo-thumb-sm" alt="裏ラベル" onclick="openImgModal(this.src)" style="cursor:zoom-in"><div class="label-photo-cap">裏ラベル</div>`:'<div class="label-photo-empty">写真なし</div>'}</div></div>`:''} ${v.note?`<div class="info-box" style="margin-bottom:10px">${v.note}</div>`:''}<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div style="font-size:10px;font-weight:700;color:var(--text3)">飲み感の記録</div><div style="display:flex;gap:2px"><button class="icon-btn" onclick="openNomiSheet('${sakeId}','${v.id}')" aria-label="飲み感を追加" style="font-size:13px;color:var(--accent)"><i class="fa fa-plus"></i></button></div></div>${sortedNomikans(v.nomikans||[]).map(t=>nomiHTML(sakeId,v.id,t)).join('')}</div></div>`;
 }
 function cardHTML(r){
   const best=bestRating(r);const total=totalNomikans(r);
@@ -1060,7 +1067,7 @@ function cardHTML(r){
       <button class="icon-btn" onclick="openVintageSheet('${r.id}')" aria-label="製造年月を追加" style="font-size:15px;color:var(--accent)"><i class="fa fa-plus"></i></button>
     </div>
   </div>
-  ${r.vintages.map(v=>vintageHTML(r.id,v)).join('')}
+  ${sortedVintages(r.vintages).map(v=>vintageHTML(r.id,v)).join('')}
 </div></div>`;
 }
 function filterAndSort(list){
@@ -1090,8 +1097,89 @@ window.addEventListener('popstate',function(e){
   }
 });
 
-function renderList(){updateCount();document.getElementById('list-container').innerHTML=db.length?db.map(cardHTML).join(''):`<div class="empty-state"><i class="fa fa-wine-bottle"></i><p>まだ記録がありません<br>右下の＋ボタンから<br>最初の一本を記録しましょう</p></div>`;}
-function renderSearch(){const list=filterAndSort([...db]);document.getElementById('search-results').innerHTML=list.length?list.map(cardHTML).join(''):`<div class="empty-state"><i class="fa fa-search"></i><p>該当する銘柄がありません</p></div>`;}
+// 最新の飲んだ日を返す
+function latestNomiDate(sake){
+  let latest='';
+  (sake.vintages||[]).forEach(v=>{
+    (v.nomikans||[]).forEach(t=>{if(t.date&&t.date>latest)latest=t.date;});
+  });
+  return latest;
+}
+// 製造年月を新しい順にソート
+function sortedVintages(vintages){
+  return [...(vintages||[])].sort((a,b)=>{
+    const ay=+(a.year||0)*100+(+(a.month||0));
+    const by=+(b.year||0)*100+(+(b.month||0));
+    return by-ay;
+  });
+}
+// 飲み感を新しい順にソート
+function sortedNomikans(nomikans){
+  return [...(nomikans||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+}
+
+function renderList(){
+  updateCount();
+  // 最新の飲んだ日が新しい順にソート
+  const sorted=[...db].sort((a,b)=>{
+    const la=latestNomiDate(a);
+    const lb=latestNomiDate(b);
+    if(la&&lb)return lb.localeCompare(la);
+    if(la)return -1;
+    if(lb)return 1;
+    return (b.createdAt||0)-(a.createdAt||0);
+  });
+  document.getElementById('list-container').innerHTML=sorted.length?sorted.map(cardHTML).join(''):`<div class="empty-state"><i class="fa fa-wine-bottle"></i><p>まだ記録がありません<br>右下の＋ボタンから<br>最初の一本を記録しましょう</p></div>`;
+}
+function renderSearch(){
+  const list=filterAndSort([...db]);
+  document.getElementById('search-results').innerHTML=list.length?list.map(cardHTML).join(''):`<div class="empty-state"><i class="fa fa-search"></i><p>該当する銘柄がありません</p></div>`;
+}
+function renderKura(){
+  // 蔵元ごとにグループ化
+  const kuraMap={};
+  db.forEach(r=>{
+    const key=(r.kura||'不明')+((r.pref)?'（'+r.pref+'）':'');
+    if(!kuraMap[key])kuraMap[key]=[];
+    kuraMap[key].push(r);
+  });
+  // 蔵元名でソート
+  const kuraKeys=Object.keys(kuraMap).sort((a,b)=>a.localeCompare(b,'ja'));
+  if(!kuraKeys.length){
+    document.getElementById('kura-container').innerHTML=`<div class="empty-state"><i class="fa fa-house"></i><p>まだ記録がありません</p></div>`;
+    return;
+  }
+  document.getElementById('kura-container').innerHTML=kuraKeys.map(key=>{
+    const sakes=kuraMap[key];
+    const total=sakes.reduce((s,r)=>s+totalNomikans(r),0);
+    const kuraDetId='kdet-'+key.replace(/[^a-zA-Z0-9]/g,'_');
+    const kuraChevId='kchev-'+key.replace(/[^a-zA-Z0-9]/g,'_');
+    return `<div class="sake-card">
+      <div class="card-header" onclick="toggleEl('${kuraDetId}','${kuraChevId}')">
+        <div class="card-body">
+          <div class="card-name">${key}</div>
+          <div class="card-sub">${sakes.length}銘柄 · 飲み感${total}回</div>
+          <div class="tag-row">${sakes.map(r=>`<span class="tag">${r.name}</span>`).join('')}</div>
+        </div>
+        <i class="fa fa-chevron-right card-chevron" id="${kuraChevId}"></i>
+      </div>
+      <div class="card-detail" id="${kuraDetId}" style="display:none">
+        ${sakes.map(r=>`
+          <div style="margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <div style="font-size:13px;font-weight:700;color:var(--text);font-family:'Noto Serif JP',serif">${r.name}</div>
+              <div style="display:flex;gap:0">
+                <button class="icon-btn" onclick="openSakeSheet('${r.id}')" style="font-size:13px"><i class="fa fa-edit"></i></button>
+                <button class="icon-btn danger" onclick="deleteSake('${r.id}')" style="font-size:13px"><i class="fa fa-trash"></i></button>
+              </div>
+            </div>
+            ${(r.shu||r.seimi||r.extra)?`<div class="info-box" style="margin-bottom:4px">${[r.shu?'酒種：'+r.shu:'',r.seimi?'精米歩合：'+r.seimi:'',r.extra].filter(Boolean).join('<br>')}</div>`:''}
+            ${sortedVintages(r.vintages).map(v=>vintageHTML(r.id,v)).join('')}
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
 
 window.addEventListener('load',async()=>{
   renderList();updateCount();
