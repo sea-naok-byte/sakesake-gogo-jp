@@ -65,7 +65,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .tag{font-size:10px;padding:2px 8px;border-radius:100px;border:1px solid var(--border2);color:var(--text2);background:var(--bg)}
 .tag-gold{border-color:var(--gold);color:var(--gold);background:var(--gold-light)}
 .tag-indigo{border-color:var(--indigo);color:var(--indigo);background:var(--indigo-light)}
-.card-chevron{color:var(--text3);font-size:14px;transition:transform .22s;margin-top:4px;flex-shrink:0}
+.card-chevron{color:var(--text3);font-size:14px;transition:transform .22s;flex-shrink:0;min-width:44px;height:44px;display:flex;align-items:center;justify-content:center;margin:-8px -8px -8px 0}
 .card-chevron.open{transform:rotate(90deg)}
 
 /* 銘柄展開 */
@@ -85,7 +85,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .vintage-summary{flex:1;min-width:0}
 .vintage-best{font-size:11px;color:var(--gold)}
 .vintage-count{font-size:11px;color:var(--text3)}
-.vintage-chevron{color:var(--text3);font-size:12px;transition:transform .2s;flex-shrink:0}
+.vintage-chevron{color:var(--text3);font-size:12px;transition:transform .2s;flex-shrink:0;min-width:40px;height:40px;display:flex;align-items:center;justify-content:center;margin:-5px -8px -5px 0}
 .vintage-chevron.open{transform:rotate(90deg)}
 .vintage-actions{display:flex;gap:2px;flex-shrink:0}
 .vintage-detail{padding:5px 6px;border-top:1px solid var(--border);background:var(--surface2)}
@@ -681,7 +681,7 @@ async function syncFromCloud(){
         localStorage.setItem('sake_local_updated', cloudUpdatedAt.toString());
         // RTDBから画像をマージ
         await mergeImagesFromRTDB();
-        renderList();renderSearch();updateCount();
+        renderCurrent();
         setSyncStatus('ok');showToast('クラウドから読み込みました');
       }
     }else{
@@ -881,7 +881,9 @@ function buildTasteSliders(){
     '</div>';
 }
 
+let currentPage='list';
 function showPage(p){
+  currentPage=p;
   ['list','search','kura'].forEach(n=>{
     document.getElementById('page-'+n).classList.toggle('active',n===p);
     document.getElementById('nav-'+n).classList.toggle('active',n===p);
@@ -889,6 +891,13 @@ function showPage(p){
   if(p==='list')renderList();
   else if(p==='search')renderSearch();
   else if(p==='kura')renderKura();
+}
+// 現在のタブを再描画
+function renderCurrent(){
+  if(currentPage==='list')renderList();
+  else if(currentPage==='search')renderSearch();
+  else if(currentPage==='kura')renderKura();
+  updateCount();
 }
 function openSheet(bgId,sheetId){document.getElementById(bgId).classList.add('open');requestAnimationFrame(()=>document.getElementById(sheetId).classList.add('open'));}
 function closeSheet(bgId,sheetId){document.getElementById(sheetId).classList.remove('open');setTimeout(()=>document.getElementById(bgId).classList.remove('open'),300);}
@@ -906,9 +915,9 @@ function saveSake(){
   const name=document.getElementById('f-name').value.trim();if(!name){document.getElementById('f-name').focus();return;}
   const rec={id:editSakeId||Date.now().toString(),name,kura:document.getElementById('f-kura').value.trim(),pref:document.getElementById('f-pref').value,shu:document.getElementById('f-shu').value,seimi:document.getElementById('f-seimi').value.trim(),extra:document.getElementById('f-extra').value.trim(),vintages:[],createdAt:Date.now()};
   if(editSakeId){const i=db.findIndex(x=>x.id===editSakeId);rec.vintages=db[i].vintages||[];db[i]=rec;}else db.unshift(rec);
-  persist();updateLocalTimestamp();closeSakeSheet();renderList();renderSearch();renderKura();updateCount();showToast('保存しました');
+  persist();updateLocalTimestamp();closeSakeSheet();renderCurrent();showToast('保存しました');
 }
-function deleteSake(id){if(!confirm('この銘柄をすべての製造年月ごと削除しますか？'))return;db=db.filter(x=>x.id!==id);persist();updateLocalTimestamp();renderList();renderSearch();updateCount();}
+function deleteSake(id){if(!confirm('この銘柄をすべての製造年月ごと削除しますか？'))return;db=db.filter(x=>x.id!==id);persist();updateLocalTimestamp();renderCurrent();}
 
 // ── 製造年月 ──
 function openVintageSheet(sakeId,vintageId){
@@ -960,9 +969,9 @@ function saveVintage(){
   const v={id:editVintageId||'v'+Date.now(),year,month:document.getElementById('v-month').value,frontImg:vFrontImg,backImg:vBackImg,note:document.getElementById('v-note').value.trim(),nomikans:[]};
   if(editVintageId){const i=sake.vintages.findIndex(x=>x.id===editVintageId);v.nomikans=sake.vintages[i].nomikans||[];sake.vintages[i]=v;}
   else sake.vintages.unshift(v);
-  persist();updateLocalTimestamp();closeVintageSheet();renderList();renderSearch();renderKura();showToast('保存しました');
+  persist();updateLocalTimestamp();closeVintageSheet();renderCurrent();showToast('保存しました');
 }
-function deleteVintage(sakeId,vid){if(!confirm('この製造年月の記録をすべて削除しますか？'))return;const sake=db.find(x=>x.id===sakeId);sake.vintages=sake.vintages.filter(x=>x.id!==vid);persist();updateLocalTimestamp();renderList();renderSearch();}
+function deleteVintage(sakeId,vid){if(!confirm('この製造年月の記録をすべて削除しますか？'))return;const sake=db.find(x=>x.id===sakeId);sake.vintages=sake.vintages.filter(x=>x.id!==vid);persist();updateLocalTimestamp();renderCurrent();}
 
 // ── 飲み感 ──
 function openNomiSheet(sakeId,vintageId,nomiId){
@@ -1007,9 +1016,9 @@ function saveNomi(){
     furikiriDate
   };
   if(editNomiId){const i=v.nomikans.findIndex(x=>x.id===editNomiId);v.nomikans[i]=t;}else v.nomikans.unshift(t);
-  persist();updateLocalTimestamp();closeNomiSheet();renderList();renderSearch();renderKura();showToast('保存しました');
+  persist();updateLocalTimestamp();closeNomiSheet();renderCurrent();showToast('保存しました');
 }
-function deleteNomi(sakeId,vid,nid){const sake=db.find(x=>x.id===sakeId);const v=sake.vintages.find(x=>x.id===vid);v.nomikans=v.nomikans.filter(x=>x.id!==nid);persist();updateLocalTimestamp();renderList();renderSearch();}
+function deleteNomi(sakeId,vid,nid){const sake=db.find(x=>x.id===sakeId);const v=sake.vintages.find(x=>x.id===vid);v.nomikans=v.nomikans.filter(x=>x.id!==nid);persist();updateLocalTimestamp();renderCurrent();}
 
 // ── 展開 ──
 function toggleEl(id,chevId){
@@ -1019,18 +1028,40 @@ function toggleEl(id,chevId){
   const open=d.style.display==='block';
   d.style.display=open?'none':'block';
   if(c)c.classList.toggle('open',!open);
-  // 銘柄カードを展開したとき、すべての製造年月と飲み感も展開する
-  if(!open&&id.startsWith('det-')){
-    // 少し遅らせてDOMが確定してから展開
+
+  if(!open){
     setTimeout(()=>{
-      d.querySelectorAll('[id^="vdet-"]').forEach(vd=>{
-        if(vd.style.display!=='block'){
+      // 銘柄カード（det-）展開時：すべての製造年月と飲み感を展開
+      if(id.startsWith('det-')){
+        d.querySelectorAll('[id^="vdet-"]').forEach(vd=>{
           vd.style.display='block';
-          const vid=vd.id.replace('vdet-','');
-          const vc=document.getElementById('vchev-'+vid);
+          const vc=document.getElementById('vchev-'+vd.id.replace('vdet-',''));
           if(vc)vc.classList.add('open');
-        }
-      });
+        });
+      }
+      // 酒造タブの蔵元（kdet-）展開時：すべての銘柄と製造年月と飲み感を展開
+      if(id.startsWith('kdet-')){
+        // 銘柄を展開
+        d.querySelectorAll('[id^="rdet-"]').forEach(rd=>{
+          rd.style.display='block';
+          const rc=document.getElementById('rchev-'+rd.id.replace('rdet-',''));
+          if(rc)rc.classList.add('open');
+          // その中の製造年月も展開
+          rd.querySelectorAll('[id^="vdet-"]').forEach(vd=>{
+            vd.style.display='block';
+            const vc=document.getElementById('vchev-'+vd.id.replace('vdet-',''));
+            if(vc)vc.classList.add('open');
+          });
+        });
+      }
+      // 酒造タブの銘柄（rdet-）展開時：すべての製造年月と飲み感を展開
+      if(id.startsWith('rdet-')){
+        d.querySelectorAll('[id^="vdet-"]').forEach(vd=>{
+          vd.style.display='block';
+          const vc=document.getElementById('vchev-'+vd.id.replace('vdet-',''));
+          if(vc)vc.classList.add('open');
+        });
+      }
     },50);
   }
 }
@@ -1264,7 +1295,7 @@ window.addEventListener('load',async()=>{
     return {...t,rating:t.rating?Math.min(10,t.rating*2):0,tastes:newTastes,_ratingMigrated:true};
   })}))}));
   if(migrated){persist();console.log('評価値を10段階に移行しました');}
-  renderList();updateCount();
+  renderCurrent();
   // Firebase設定があれば初期化（認証状態はonAuthStateChangedで監視）
   const cfg=JSON.parse(localStorage.getItem('sake_fb_config')||'null');
   if(cfg&&cfg.apiKey){
