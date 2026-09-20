@@ -157,8 +157,8 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .photo-thumb-sm{width:100%;height:38px;object-fit:cover;border-radius:6px;border:1px solid var(--border);margin-bottom:2px;display:block;cursor:zoom-in}
 
 /* 星評価 */
-.star-row{display:flex;gap:4px;margin-top:4px}
-.star-btn{font-size:26px;cursor:pointer;color:var(--border2);background:none;border:none;line-height:1;padding:1px}
+.star-row{display:flex;gap:1px;margin-top:4px;flex-wrap:wrap}
+.star-btn{font-size:20px;cursor:pointer;color:var(--border2);background:none;border:none;line-height:1;padding:1px}
 .star-btn.on{color:var(--gold)}
 .taste-sl{margin-bottom:6px}
 .taste-sl-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
@@ -371,6 +371,11 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
         <button class="star-btn" data-v="3" onclick="setRating(3)">★</button>
         <button class="star-btn" data-v="4" onclick="setRating(4)">★</button>
         <button class="star-btn" data-v="5" onclick="setRating(5)">★</button>
+        <button class="star-btn" data-v="6" onclick="setRating(6)">★</button>
+        <button class="star-btn" data-v="7" onclick="setRating(7)">★</button>
+        <button class="star-btn" data-v="8" onclick="setRating(8)">★</button>
+        <button class="star-btn" data-v="9" onclick="setRating(9)">★</button>
+        <button class="star-btn" data-v="10" onclick="setRating(10)">★</button>
       </div>
     </div>
     <div class="sfield"><label>味の評価（各5段階）</label><div id="taste-sliders" style="margin-top:8px"></div></div>
@@ -867,9 +872,9 @@ function buildTasteSliders(){
       <div class="taste-sl" style="margin-bottom:0">
         <div class="taste-sl-top" style="margin-bottom:3px">
           <label style="font-size:12px">${k}</label>
-          <span id="tv-${k}" style="font-size:12px">★${tasteVals[k]||3}</span>
+          <span id="tv-${k}" style="font-size:12px">★${tasteVals[k]||5}</span>
         </div>
-        <input type="range" min="1" max="5" value="${tasteVals[k]||3}" step="1"
+        <input type="range" min="1" max="10" value="${tasteVals[k]||5}" step="1"
           oninput="tasteVals['${k}']=+this.value;document.getElementById('tv-${k}').textContent='★'+this.value">
       </div>`).join('')+
     '</div>';
@@ -971,7 +976,7 @@ function openNomiSheet(sakeId,vintageId,nomiId){
     document.getElementById('t-place').value=t.place||'';
     document.getElementById('t-note').value=t.note||'';
     tRating=t.rating||0;
-    TASTE_KEYS.forEach(k=>{tasteVals[k]=t.tastes?.[k]||3;});
+    TASTE_KEYS.forEach(k=>{tasteVals[k]=t.tastes?.[k]||5;});
     const ftype=t.furikiriType||'date';
     document.getElementById('t-furikiri-type').value=ftype;
     document.getElementById('t-furikiri-date').value=t.furikiriDate||'';
@@ -979,7 +984,7 @@ function openNomiSheet(sakeId,vintageId,nomiId){
     document.getElementById('t-date').value=new Date().toISOString().slice(0,10);
     document.getElementById('t-place').value='';
     document.getElementById('t-note').value='';
-    TASTE_KEYS.forEach(k=>{tasteVals[k]=3;});
+    TASTE_KEYS.forEach(k=>{tasteVals[k]=5;});
     document.getElementById('t-furikiri-type').value='date';
     document.getElementById('t-furikiri-date').value='';
   }
@@ -1036,8 +1041,8 @@ function latestFrontImg(sake){
 }
 
 // ── レンダリング ──
-function dots(v){return Array.from({length:5},(_,i)=>`<div class="dot${i<v?' on':''}"></div>`).join('');}
-function starsStr(n){return'★'.repeat(n)+'☆'.repeat(5-n);}
+function dots(v){return Array.from({length:10},(_,i)=>`<div class="dot${i<v?' on':''}"></div>`).join('');}
+function starsStr(n){return'★'.repeat(n)+'☆'.repeat(10-n);}
 function updateCount(){document.getElementById('sake-count').textContent=db.length?db.length+'銘柄':'';}
 function bestRating(sake){let best=0;sake.vintages.forEach(v=>(v.nomikans||[]).forEach(t=>{if((t.rating||0)>best)best=t.rating;}));return best;}
 function totalNomikans(sake){return sake.vintages.reduce((s,v)=>s+(v.nomikans||[]).length,0);}
@@ -1191,6 +1196,16 @@ function renderKura(){
 }
 
 window.addEventListener('load',async()=>{
+  // 既存データの評価値を2倍に移行（5段階→10段階）
+  let migrated=false;
+  db=db.map(r=>({...r,vintages:(r.vintages||[]).map(v=>({...v,nomikans:(v.nomikans||[]).map(t=>{
+    if(t._ratingMigrated)return t;
+    const newTastes={};
+    TASTE_KEYS.forEach(k=>{if(t.tastes&&t.tastes[k]!=null)newTastes[k]=Math.min(10,t.tastes[k]*2);else newTastes[k]=5;});
+    migrated=true;
+    return {...t,rating:t.rating?Math.min(10,t.rating*2):0,tastes:newTastes,_ratingMigrated:true};
+  })}))}));
+  if(migrated){persist();console.log('評価値を10段階に移行しました');}
   renderList();updateCount();
   // Firebase設定があれば初期化（認証状態はonAuthStateChangedで監視）
   const cfg=JSON.parse(localStorage.getItem('sake_fb_config')||'null');
