@@ -705,6 +705,15 @@ async function doLogin(){
   const pw=document.getElementById('login-password').value;
   const errEl=document.getElementById('login-error');
   if(!email||!pw){errEl.style.display='block';errEl.textContent='メールアドレスとパスワードを入力してください';return;}
+  // Firebase未初期化なら先に初期化
+  if(!window._auth||!window._signInWithEmail){
+    const ok=await window._fbInit();
+    if(!ok){
+      errEl.style.display='block';
+      errEl.textContent='Firebase設定が見つかりません。⚙️設定を確認してください';
+      return;
+    }
+  }
   try{
     errEl.style.display='none';
     await window._signInWithEmail(window._auth,email,pw);
@@ -717,7 +726,7 @@ async function doLogin(){
     }else if(e.code==='auth/too-many-requests'){
       errEl.textContent='ログイン試行回数が多すぎます。しばらく待ってください';
     }else{
-      errEl.textContent='ログインに失敗しました：'+e.message;
+      errEl.textContent='ログインに失敗しました：'+e.code;
     }
   }
 }
@@ -1186,7 +1195,10 @@ window.addEventListener('load',async()=>{
   // Firebase設定があれば初期化（認証状態はonAuthStateChangedで監視）
   const cfg=JSON.parse(localStorage.getItem('sake_fb_config')||'null');
   if(cfg&&cfg.apiKey){
-    await window._fbInit();
+    // モジュールの読み込み完了を待つ
+    setTimeout(async()=>{
+      await window._fbInit();
+    },300);
   }else{
     setSyncStatus('');
   }
