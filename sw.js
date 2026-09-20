@@ -1,4 +1,4 @@
-const CACHE = 'sake-memo-v12';
+const CACHE = 'sake-memo-v13';
 const ASSETS = [
   './sake_memo.html',
   './manifest.json',
