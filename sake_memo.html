@@ -1150,47 +1150,104 @@ function renderSearch(){
   const list=filterAndSort([...db]);
   document.getElementById('search-results').innerHTML=list.length?list.map(cardHTML).join(''):`<div class="empty-state"><i class="fa fa-search"></i><p>該当する銘柄がありません</p></div>`;
 }
+// 47都道府県の順番
+const PREF_ORDER=['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
+
+// 一番最近の飲み感の写真を取得
+function latestNomiImg(sake){
+  let latestDate='';
+  let latestImg=null;
+  (sake.vintages||[]).forEach(v=>{
+    // 最新の表ラベルも候補に
+    const sorted=sortedNomikans(v.nomikans||[]);
+    if(sorted.length&&sorted[0].date>latestDate){
+      latestDate=sorted[0].date;
+      // 表ラベル写真を使う
+      latestImg=v.frontImg||null;
+    }
+  });
+  return latestImg||latestFrontImg(sake);
+}
+
 function renderKura(){
-  // 蔵元ごとにグループ化
+  // 蔵元ごとにグループ化（prefをキーに含める）
   const kuraMap={};
   db.forEach(r=>{
-    const key=(r.kura||'不明')+((r.pref)?'（'+r.pref+'）':'');
-    if(!kuraMap[key])kuraMap[key]=[];
-    kuraMap[key].push(r);
+    const pref=r.pref||'';
+    const kura=r.kura||'不明';
+    // prefとkuraを組み合わせてユニークキー
+    const key=pref+'__'+kura;
+    if(!kuraMap[key])kuraMap[key]={pref,kura,sakes:[]};
+    kuraMap[key].sakes.push(r);
   });
-  // 蔵元名でソート
-  const kuraKeys=Object.keys(kuraMap).sort((a,b)=>a.localeCompare(b,'ja'));
-  if(!kuraKeys.length){
+
+  if(!Object.keys(kuraMap).length){
     document.getElementById('kura-container').innerHTML=`<div class="empty-state"><i class="fa fa-house"></i><p>まだ記録がありません</p></div>`;
     return;
   }
-  document.getElementById('kura-container').innerHTML=kuraKeys.map(key=>{
-    const sakes=kuraMap[key];
+
+  // 47都道府県順でソート、県不明は末尾
+  const sorted=Object.values(kuraMap).sort((a,b)=>{
+    const ai=PREF_ORDER.indexOf(a.pref);
+    const bi=PREF_ORDER.indexOf(b.pref);
+    const aIdx=ai===-1?999:ai;
+    const bIdx=bi===-1?999:bi;
+    if(aIdx!==bIdx)return aIdx-bIdx;
+    // 同じ都道府県内は蔵元名の五十音順
+    return a.kura.localeCompare(b.kura,'ja');
+  });
+
+  document.getElementById('kura-container').innerHTML=sorted.map((entry,idx)=>{
+    const {pref,kura,sakes}=entry;
     const total=sakes.reduce((s,r)=>s+totalNomikans(r),0);
-    const kuraDetId='kdet-'+key.replace(/[^a-zA-Z0-9]/g,'_');
-    const kuraChevId='kchev-'+key.replace(/[^a-zA-Z0-9]/g,'_');
+    // IDはインデックスベースで重複を防ぐ
+    const kuraDetId='kdet-'+idx;
+    const kuraChevId='kchev-'+idx;
+    const displayName=kura+(pref?' （'+pref+'）':'');
+    // 最新飲み感の写真（蔵元の最新のもの）
+    let kuraThumb=null;
+    let kuraLatestDate='';
+    sakes.forEach(r=>{
+      const d=latestNomiDate(r);
+      if(d>kuraLatestDate){kuraLatestDate=d;kuraThumb=latestNomiImg(r);}
+    });
+
     return `<div class="sake-card">
       <div class="card-header" onclick="toggleEl('${kuraDetId}','${kuraChevId}')">
+        <div class="card-label-img">${kuraThumb?`<img src="${kuraThumb}" alt="ラベル" onclick="event.stopPropagation();openImgModal(this.src)" style="cursor:zoom-in">`:'🏠'}</div>
         <div class="card-body">
-          <div class="card-name">${key}</div>
-          <div class="card-sub">${sakes.length}銘柄 · 飲み感${total}回</div>
+          <div class="card-name">${displayName}</div>
+          <div class="card-sub">${sakes.length}銘柄 · 飲み感${total}回${pref?' · '+pref:''}</div>
           <div class="tag-row">${sakes.map(r=>`<span class="tag">${r.name}</span>`).join('')}</div>
         </div>
         <i class="fa fa-chevron-right card-chevron" id="${kuraChevId}"></i>
       </div>
       <div class="card-detail" id="${kuraDetId}" style="display:none">
-        ${sakes.map(r=>`
-          <div style="margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border)">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-              <div style="font-size:13px;font-weight:700;color:var(--text);font-family:'Noto Serif JP',serif">${r.name}</div>
-              <div style="display:flex;gap:0">
+        ${sakes.map(r=>{
+          const rDetId='rdet-'+r.id;
+          const rChevId='rchev-'+r.id;
+          const rThumb=latestFrontImg(r);
+          const rBest=bestRating(r);
+          const rTotal=totalNomikans(r);
+          return `<div style="margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border)">
+            <div class="card-header" style="padding:6px 4px;cursor:pointer" onclick="toggleEl('${rDetId}','${rChevId}')">
+              <div class="card-label-img" style="width:36px;height:48px">${rThumb?`<img src="${rThumb}" alt="ラベル" onclick="event.stopPropagation();openImgModal(this.src)" style="cursor:zoom-in">`:'🍶'}</div>
+              <div class="card-body">
+                <div class="card-name" style="font-size:13px">${r.name}</div>
+                <div class="tag-row">${rBest?`<span class="tag tag-gold">${starsStr(rBest)}</span>`:''}${rTotal?`<span class="tag tag-indigo">${rTotal}回</span>`:''}</div>
+              </div>
+              <div style="display:flex;gap:0;flex-shrink:0" onclick="event.stopPropagation()">
                 <button class="icon-btn" onclick="openSakeSheet('${r.id}')" style="font-size:13px"><i class="fa fa-edit"></i></button>
                 <button class="icon-btn danger" onclick="deleteSake('${r.id}')" style="font-size:13px"><i class="fa fa-trash"></i></button>
               </div>
+              <i class="fa fa-chevron-right card-chevron" id="${rChevId}" style="font-size:12px"></i>
             </div>
-            ${(r.shu||r.seimi||r.extra)?`<div class="info-box" style="margin-bottom:4px">${[r.shu?'酒種：'+r.shu:'',r.seimi?'精米歩合：'+r.seimi:'',r.extra].filter(Boolean).join('<br>')}</div>`:''}
-            ${sortedVintages(r.vintages).map(v=>vintageHTML(r.id,v)).join('')}
-          </div>`).join('')}
+            <div id="${rDetId}" style="display:none;padding:4px 4px 0">
+              ${(r.shu||r.seimi||r.extra)?`<div class="info-box" style="margin-bottom:4px">${[r.shu?'酒種：'+r.shu:'',r.seimi?'精米歩合：'+r.seimi:'',r.extra].filter(Boolean).join('<br>')}</div>`:''}
+              ${sortedVintages(r.vintages).map(v=>vintageHTML(r.id,v)).join('')}
+            </div>
+          </div>`;
+        }).join('')}
       </div>
     </div>`;
   }).join('');
